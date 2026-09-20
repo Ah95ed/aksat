@@ -70,10 +70,7 @@ class AksatApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authInterceptor = AuthInterceptor(
-      const FlutterSecureStorage(),
-      preferences: prefs.preferences,
-    );
+    final authInterceptor = AuthInterceptor(const FlutterSecureStorage());
     final apiClient = ApiClient(authInterceptor)..init();
     final repository = AuthRepositoryImpl(
       AuthRemoteDataSource(apiClient),
@@ -485,12 +482,30 @@ class _AppDrawer extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primaryContainer,
               ),
-              child: Align(
-                alignment: AlignmentDirectional.bottomStart,
-                child: Text(
-                  english ? 'Aksat' : 'أقساط',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/images/iconapp.jpg',
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    english ? 'Aksat' : 'تطبيق أقساط',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  Text(
+                    english
+                        ? 'Installment management system'
+                        : 'برنامج لإدارة الأقساط والمبيعات',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ),
             ),
             ListTile(

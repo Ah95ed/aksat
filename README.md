@@ -1,17 +1,87 @@
-# aksat
+# تطبيق أقساط
 
-A new Flutter project.
+تطبيق Flutter لإدارة المبيعات بالتقسيط، العملاء، المنتجات، المخزون، والمدفوعات من مكان واحد. يساعد أصحاب المتاجر على متابعة الأقساط المستحقة ومعرفة وضع المبيعات والمخزون من خلال لوحة تحكم واضحة.
 
-## Getting Started
+## مميزات التطبيق
 
-This project is a starting point for a Flutter application.
+- لوحة تحكم تعرض ملخص المبيعات والأقساط والبيانات المهمة.
+- إدارة المنتجات والمواد مع متابعة الكميات والأسعار.
+- إدارة العملاء والمشترين ومعلومات التواصل الخاصة بهم.
+- إنشاء ومتابعة عمليات البيع بالتقسيط والدفعات.
+- إدارة المخزون ومراقبة حركة المواد.
+- تقارير تساعد على مراجعة المبيعات والأقساط.
+- إعدادات التطبيق، مع دعم العربية والإنجليزية واتجاه RTL.
+- تصميم متجاوب يعمل على الهاتف واللوحي وسطح المكتب.
 
-A few resources to get you started if this is your first Flutter project:
+## أقسام التطبيق
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+يحتوي التطبيق على الأقسام الرئيسية التالية: الرئيسية، المواد، المشترون، الأقساط، المبيعات، المخزن، التقارير، والإعدادات. يمكن الوصول إليها من القائمة الجانبية Drawer.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## المعمارية وطريقة البناء
+
+التطبيق مبني باستخدام Flutter وDart وفق تنظيم **Feature-first** مع فصل الطبقات المشتركة عن ميزات التطبيق. كل ميزة موجودة داخل مجلدها الخاص، بينما توجد الخدمات العامة مثل الشبكة والتخزين والحالة والثيم داخل `lib/core`.
+
+تستخدم الواجهات نمطًا يعتمد على `Controllers` و`Provider` لإدارة الحالة، مع فصل منطق جلب البيانات عن Widgets. تستخدم طبقة الشبكة `Dio` للتعامل مع API، وتستخدم أدوات التخزين لحفظ الإعدادات والبيانات الآمنة محليًا.
+
+## تنظيم الملفات
+
+```text
+lib/
+  main.dart                 نقطة تشغيل التطبيق والـ Drawer
+  core/                     الخدمات والحالة والثيم والأدوات المشتركة
+  features/                 ميزات التطبيق مقسمة حسب المجال
+    auth/                   تسجيل الدخول والمصادقة
+    customers/              العملاء
+    dashboard/              لوحة التحكم
+    installments/           الأقساط
+    inventory/              المخزون
+    products/               المنتجات
+    reports/                التقارير
+    sales/                  المبيعات
+    settings/               الإعدادات
+  responsive/               التخطيط المتجاوب ونقاط التوقف
+  theme/                    الألوان والأبعاد وأنماط النصوص
+assets/
+  fonts/                    الخطوط، ومنها Cairo
+  images/                   الصور، ومنها أيقونة التطبيق
+test/                       اختبارات الوحدات والواجهات
+```
+
+## التقنيات المستخدمة
+
+- Flutter وDart لبناء التطبيق متعدد المنصات.
+- `provider` لإدارة الحالة.
+- `dio` للاتصال بخدمات API.
+- `flutter_secure_storage` و`shared_preferences` للتخزين المحلي.
+- `intl` و`flutter_localizations` للترجمة والتنسيق.
+- `fl_chart` لعرض الرسوم البيانية والتقارير.
+- `flutter_screenutil` لدعم أحجام الشاشات المختلفة.
+- خط Cairo وملفات assets لتوحيد الهوية البصرية.
+
+## الاستخدامات
+
+يناسب التطبيق المتاجر والمشاريع التي تبيع بالتقسيط وتحتاج إلى تسجيل المبيعات، متابعة دفعات العملاء، معرفة المتبقي من كل قسط، مراقبة المخزون، وإعداد تقارير مختصرة لاتخاذ قرارات أفضل.
+
+## التشغيل
+
+بعد تثبيت Flutter وتشغيل المحاكي أو توصيل جهاز، نفذ:
+
+```bash
+flutter pub get
+flutter run
+```
+
+وللتحقق من جودة الكود:
+
+```bash
+flutter analyze
+flutter test
+```
+
+## الأمان
+
+- الاتصال بواجهة API يستخدم HTTPS، والـ token يُحفظ في `flutter_secure_storage` ولا يُحفظ في `SharedPreferences`.
+- طلبات البيانات المحمية ترسل token بصيغة Bearer، بينما يبقى التحقق من الصلاحيات وصحة البيانات مسؤولية الخادم.
+- نسخة Android Release تستخدم R8 وResource Shrinking، ونسخة CI تستخدم Dart obfuscation مع حفظ ملفات فك الرموز خارج التطبيق.
+- لا يجب وضع مفاتيح API أو كلمات مرور أو أسرار داخل كود Flutter؛ تُحفظ أسرار التوقيع في GitHub Secrets أو بيئة البناء.
+- يجب أن يفرض الخادم صلاحيات المستخدم على كل عمليات القراءة والكتابة، والتحقق من ملكية السجلات، وانتهاء token، وتدويره، وتحديد معدل المحاولات.

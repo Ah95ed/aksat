@@ -26,6 +26,7 @@ flutter:
   generate: true
   assets:
     - assets/fonts/
+    - assets/images/iconapp.jpg
     
 
   fonts:
@@ -37,4 +38,3 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  
