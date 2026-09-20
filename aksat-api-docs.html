@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>توثيق واجهة برمجة نظام إدارة الأقساط (API)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7f8fa; --panel:#ffffff; --ink:#1b2430; --muted:#5d6b7c; --line:#e1e6ed;
+  --accent:#0b6e6e; --accent-soft:#e3f2f1; --code-bg:#0f1a24; --code-ink:#dbe7f3;
+  --get:#1c7c4a; --post:#1f5fbf; --put:#a86400; --del:#b3261e;
+  --warn-bg:#fff5e0; --warn-line:#e8b04a; --danger-bg:#fdecea; --danger-line:#e08a84;
+}
+:root:not([data-theme="light"]){}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10161d; --panel:#17202a; --ink:#e6edf5; --muted:#9aa9ba; --line:#28343f;
+    --accent:#5cc8c2; --accent-soft:#16302f; --code-bg:#0a1016; --code-ink:#d3e2f1;
+    --get:#4fc98a; --post:#6ea8ff; --put:#e7a23a; --del:#ff8a80;
+    --warn-bg:#2b2413; --warn-line:#7a6220; --danger-bg:#2d1a19; --danger-line:#7c3a36;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10161d; --panel:#17202a; --ink:#e6edf5; --muted:#9aa9ba; --line:#28343f;
+  --accent:#5cc8c2; --accent-soft:#16302f; --code-bg:#0a1016; --code-ink:#d3e2f1;
+  --get:#4fc98a; --post:#6ea8ff; --put:#e7a23a; --del:#ff8a80;
+  --warn-bg:#2b2413; --warn-line:#7a6220; --danger-bg:#2d1a19; --danger-line:#7c3a36;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans Arabic","Segoe UI",Tahoma,Arial,sans-serif;
+  font-size:16px;line-height:1.85;
+}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:0;max-width:1180px;margin:0 auto}
+nav.toc{
+  position:sticky;top:0;align-self:start;height:100vh;overflow:auto;
+  padding:28px 20px;border-inline-end:1px solid var(--line);
+}
+nav.toc h2{font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:500}
+nav.toc a{display:block;padding:5px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14.5px}
+nav.toc a:hover,nav.toc a:focus-visible{background:var(--accent-soft);outline:none}
+nav.toc .grp{margin:14px 0 4px;font-size:12.5px;color:var(--muted)}
+main{padding:36px 40px 80px;min-width:0}
+h1{font-size:30px;line-height:1.4;margin:0 0 8px}
+h2.sec{font-size:23px;margin:52px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+h3{font-size:17px;margin:26px 0 8px}
+p{margin:8px 0}
+.lead{color:var(--muted);font-size:17px;margin-bottom:22px}
+code{font-family:"JetBrains Mono",Consolas,Menlo,monospace;font-size:.88em;direction:ltr;unicode-bidi:embed;
+  background:var(--accent-soft);padding:1px 6px;border-radius:5px}
+pre{
+  direction:ltr;text-align:left;background:var(--code-bg);color:var(--code-ink);
+  padding:14px 16px;border-radius:8px;overflow:auto;margin:10px 0;
+  font-family:"JetBrains Mono",Consolas,Menlo,monospace;font-size:13.5px;line-height:1.65;
+}
+pre code{background:none;padding:0;color:inherit;font-size:inherit}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:15px;display:block;overflow-x:auto}
+th,td{padding:8px 12px;border:1px solid var(--line);text-align:start;vertical-align:top}
+th{background:var(--accent-soft);font-weight:600;white-space:nowrap}
+td:first-child{white-space:nowrap}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:16px 0}
+.ep{margin:18px 0}
+.ep-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;direction:ltr;margin-bottom:6px}
+.badge{font-family:"JetBrains Mono",Consolas,monospace;font-size:12.5px;font-weight:500;padding:2px 9px;border-radius:5px;
+  border:1px solid currentColor;min-width:64px;text-align:center}
+.GET{color:var(--get)} .POST{color:var(--post)} .PUT{color:var(--put)} .DELETE{color:var(--del)}
+.path{font-family:"JetBrains Mono",Consolas,monospace;font-size:14.5px;direction:ltr}
+.ep-desc{margin:2px 0 6px}
+.note,.warn,.danger{border-radius:8px;padding:12px 16px;margin:14px 0;border:1px solid}
+.note{background:var(--accent-soft);border-color:var(--accent)}
+.warn{background:var(--warn-bg);border-color:var(--warn-line)}
+.danger{background:var(--danger-bg);border-color:var(--danger-line)}
+.note b,.warn b,.danger b{display:block;margin-bottom:2px}
+ul,ol{padding-inline-start:22px;margin:8px 0}
+li{margin:3px 0}
+.ltr{direction:ltr;unicode-bidi:embed;display:inline-block}
+footer{margin-top:60px;color:var(--muted);font-size:14px}
+@media (max-width: 860px){
+  .layout{grid-template-columns:1fr}
+  nav.toc{position:static;height:auto;border-inline-end:0;border-bottom:1px solid var(--line);padding:18px 16px}
+  main{padding:24px 16px 60px}
+  h1{font-size:25px}
+}
+@media print{ nav.toc{display:none} .layout{display:block} pre{white-space:pre-wrap} }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" aria-label="فهرس التوثيق">
+  <h2>الفهرس</h2>
+  <a href="#start">البدء السريع</a>
+  <a href="#rules">قواعد عامة</a>
+  <a href="#auth">المصادقة</a>
+  <div class="grp">الـ Endpoints</div>
+  <a href="#dashboard">لوحة التحكم</a>
+  <a href="#products">المواد</a>
+  <a href="#customers">المشترون</a>
+  <a href="#sales">المبيعات</a>
+  <a href="#installments">الأقساط</a>
+  <a href="#inventory">المخزن</a>
+  <a href="#reports">التقارير</a>
+  <a href="#settings">الإعدادات</a>
+  <div class="grp">مرجع</div>
+  <a href="#dart">مثال Dart</a>
+  <a href="#errors">أكواد الأخطاء</a>
+  <a href="#checklist">نقاط انتباه</a>
+</nav>
+
+<main>
+<h1>توثيق API نظام إدارة الأقساط</h1>
+<p class="lead">واجهة REST بصيغة JSON، مبنية بـ PHP وتعتمد على JWT. هذا المستند موجّه لمبرمج تطبيق Flutter، وكل ما يحتاجه للتعامل مع النظام موجود هنا دون أي وصول مباشر لقاعدة البيانات.</p>
+
+<h2 class="sec" id="start">البدء السريع</h2>
+<div class="card">
+<table>
+<tr><th>Base URL</th><td><code>https://aksat.store/api/</code> (يتغير حسب دومين العميل)</td></tr>
+<tr><th>صيغة الطلب</th><td>JSON مع الهيدر <code>Content-Type: application/json</code></td></tr>
+<tr><th>صيغة الرد</th><td>دائماً <code>{ "success": bool, "data": ..., "message": "..." }</code></td></tr>
+<tr><th>المصادقة</th><td>توكن JWT يُرسل في الهيدر (انظر قسم المصادقة)</td></tr>
+<tr><th>مدة التوكن</th><td>24 ساعة، ولا يوجد refresh token، فيُعاد تسجيل الدخول بعد انتهائه</td></tr>
+<tr><th>عزل البيانات</th><td>كل مستخدم يرى ويعدّل بياناته فقط، ولا حاجة لإرسال <code>user_id</code> في أي طلب</td></tr>
+</table>
+</div>
+<p>مسار كل endpoint ينتهي بـ <code>.php</code>، مثل <code>/api/products.php</code> وليس <code>/api/products</code>.</p>
+
+<h2 class="sec" id="rules">قواعد عامة</h2>
+<div class="danger"><b>افحص <code>success</code> دائماً وليس كود HTTP فقط</b>
+بعض أخطاء التحقق (حقل ناقص، بيانات غير صالحة في المشترين والمخزن مثلاً) تعيد HTTP 200 مع <code>"success": false</code> ورسالة الخطأ في <code>message</code>. اعتمد على <code>success</code> أولاً، ثم على كود HTTP للحالات 401 و403 و429.</div>
+<ul>
+  <li><b>الأرقام المالية</b> (<code>price</code>, <code>amount</code>, <code>total_price</code> ...) عمود DECIMAL في القاعدة، وتصل كنص مثل <code>"25000.00"</code>. والمعرفات الراجعة بعد الإضافة (<code>sale_id</code> و<code>id</code> في المشترين) تصل كنص أيضاً. لذلك حوّل أي رقم قبل استخدامه بـ <code>double.tryParse(v.toString())</code> ولا تفترض نوعه.</li>
+  <li><b>العملة</b> قيمتان فقط: <code>USD</code> و<code>LOCAL</code> (الدينار أو العملة المحلية، والاسم والرمز من الإعدادات).</li>
+  <li><b>التواريخ</b> بصيغة <code>YYYY-MM-DD</code> عند الإرسال، وحقول <code>created_at</code> بصيغة <code>YYYY-MM-DD HH:MM:SS</code>.</li>
+  <li><b>حالة القسط</b> <code>status</code>: <code>pending</code> أو <code>paid</code> أو <code>late</code>. ويتحول <code>pending</code> إلى <code>late</code> تلقائياً عند تجاوز تاريخ الاستحقاق.</li>
+  <li><b>حالة عملية البيع</b> <code>status</code>: <code>active</code> أو <code>completed</code> (تصبح completed عند دفع كل الأقساط).</li>
+  <li><b>DELETE</b> يمرر المعرف في الرابط: <code>?id=5</code> وليس في الجسم.</li>
+  <li>لا تستخدم <code>admin.php</code>، فهو للوحة الإدارة على الويب فقط.</li>
+</ul>
+
+<h2 class="sec" id="auth">المصادقة</h2>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge POST">POST</span><span class="path">/login.php</span></div>
+  <p class="ep-desc">تسجيل الدخول والحصول على التوكن.</p>
+<pre><code>// الطلب
+{ "email": "user@example.com", "password": "12345678" }
+
+// رد ناجح (200)
+{
+  "success": true,
+  "data": {
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOi...",
+    "user": { "id": 3, "name": "أحمد", "role": "user" }
+  },
+  "message": "تم تسجيل الدخول بنجاح"
+}</code></pre>
+</div>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge POST">POST</span><span class="path">/register.php</span></div>
+  <p class="ep-desc">إنشاء حساب جديد ويرجع توكن جاهزاً (تسجيل دخول تلقائي).</p>
+<table>
+<tr><th>الحقل</th><th>مطلوب</th><th>ملاحظات</th></tr>
+<tr><td>name</td><td>نعم</td><td>من 2 إلى 100 حرف</td></tr>
+<tr><td>email</td><td>نعم</td><td>صيغة بريد صحيحة، ويُحفظ بأحرف صغيرة</td></tr>
+<tr><td>password</td><td>نعم</td><td>من 8 إلى 200 حرف</td></tr>
+</table>
+<p>البريد المكرر يعيد HTTP 200 مع <code>success:false</code>. الرد الناجح: <code>data.token</code> و<code>data.user {id, name, email}</code>.</p>
+</div>
+
+<h3>إرسال التوكن مع كل طلب</h3>
+<pre><code>Authorization: Bearer &lt;token&gt;
+X-Authorization: Bearer &lt;token&gt;</code></pre>
+<div class="warn"><b>أرسل الهيدرين معاً</b>
+بعض إعدادات Apache على الاستضافة المشتركة تحجب <code>Authorization</code> قبل وصوله إلى PHP. لذلك يقرأ السيرفر <code>X-Authorization</code> كبديل، والواجهة الحالية للويب ترسل الاثنين.</div>
+
+<h3>حالات الفشل المتعلقة بالدخول</h3>
+<table>
+<tr><th>الحالة</th><th>المعنى</th><th>تصرف التطبيق</th></tr>
+<tr><td>401</td><td>بيانات دخول خاطئة، أو توكن ناقص أو منتهٍ أو غير صالح</td><td>امسح التوكن وأعد المستخدم لشاشة الدخول</td></tr>
+<tr><td>403</td><td>اشتراك المستخدم موقوف أو منتهٍ. في <code>/login.php</code> يأتي <code>data.code = "SUBSCRIPTION_STOPPED"</code> ومعه <code>data.whatsapp</code></td><td>اعرض رسالة الإيقاف مع زر تواصل عبر واتساب للإدارة، ولا تعدّه خطأ اتصال</td></tr>
+<tr><td>429</td><td>محاولات دخول فاشلة كثيرة (5 محاولات خلال 5 دقائق تعني حظر 15 دقيقة)، وتجد المدة في <code>data.retry_after_seconds</code></td><td>اعرض المدة المتبقية للمستخدم</td></tr>
+</table>
+<p>الاشتراك يُفحص أيضاً مع <b>كل</b> طلب لاحق، فإذا أوقفته الإدارة أثناء استخدام التطبيق يأتيك 403 في أي endpoint.</p>
+
+<!-- ===================== DASHBOARD ===================== -->
+<h2 class="sec" id="dashboard">لوحة التحكم</h2>
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/dashboard.php</span></div>
+  <p class="ep-desc">إحصائيات الشاشة الرئيسية دفعة واحدة. لا معاملات.</p>
+<pre><code>{
+  "success": true,
+  "data": {
+    "total_customers": 12, "total_products": 8,
+    "active_sales": 9, "completed_sales": 3,
+    "collected":      { "USD": 450, "LOCAL": 1200000 },
+    "remaining":      { "USD": 900, "LOCAL": 3500000 },
+    "late_installments": 2,
+    "late_amount":    { "USD": 0, "LOCAL": 250000 },
+    "upcoming_week":  { "count": 4, "USD": 100, "LOCAL": 500000 },
+    "upcoming_month": { "count": 11, "USD": 300, "LOCAL": 1500000 },
+    "top_products":   [ { "product_name": "ثلاجة", "sales_count": "5" } ],
+    "recent_sales":   [ { "id": 21, "product_name": "غسالة", "total_price": "600.00",
+                          "currency": "USD", "created_at": "2026-09-10 12:00:00",
+                          "customer_name": "علي" } ],
+    "low_stock_items": [ { "product_id": 4, "quantity": 1, "low_stock_threshold": 3,
+                           "product_name": "مروحة", "price": "40.00", "currency": "USD" } ],
+    "inventory_tracked_count": 5,
+    "out_of_stock_count": 1
+  }
+}</code></pre>
+</div>
+
+<!-- ===================== PRODUCTS ===================== -->
+<h2 class="sec" id="products">المواد <span class="ltr" style="font-size:.6em;color:var(--muted)">/products.php</span></h2>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/products.php</span></div>
+  <p class="ep-desc">كل المواد (الأحدث أولاً). ولمادة واحدة: <code>?id=5</code> (404 إن لم توجد).</p>
+<pre><code>{ "success": true, "data": [
+  { "id": 5, "name": "ثلاجة", "cost_price": "300.00", "price": "450.00",
+    "currency": "USD", "notes": null,
+    "created_at": "2026-08-01 10:00:00", "updated_at": "2026-08-01 10:00:00" } ] }</code></pre>
+</div>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge POST">POST</span><span class="path">/products.php</span></div>
+  <p class="ep-desc">إضافة مادة، وترجع المادة كاملة.</p>
+<table>
+<tr><th>الحقل</th><th>مطلوب</th><th>ملاحظات</th></tr>
+<tr><td>name</td><td>نعم</td><td>نص غير فارغ</td></tr>
+<tr><td>price</td><td>نعم</td><td>سعر البيع، رقم ≥ 0</td></tr>
+<tr><td>currency</td><td>نعم</td><td><code>USD</code> أو <code>LOCAL</code></td></tr>
+<tr><td>cost_price</td><td>لا</td><td>سعر الشراء، الافتراضي 0</td></tr>
+<tr><td>notes</td><td>لا</td><td>نص</td></tr>
+</table>
+</div>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge PUT">PUT</span><span class="path">/products.php</span></div>
+  <p class="ep-desc">تعديل مادة. نفس حقول POST مع <code>id</code> (مطلوب). تُرسل كل الحقول ولا يوجد تعديل جزئي.</p>
+</div>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge DELETE">DELETE</span><span class="path">/products.php?id=5</span></div>
+  <p class="ep-desc">حذف مادة. إذا كانت مرتبطة بعملية بيع سابقة يعيد <b>409</b> ولا تُحذف، فاقترح على المستخدم تعديلها بدلاً من حذفها.</p>
+</div>
+
+<!-- ===================== CUSTOMERS ===================== -->
+<h2 class="sec" id="customers">المشترون <span class="ltr" style="font-size:.6em;color:var(--muted)">/customers.php</span></h2>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/customers.php</span></div>
+  <p class="ep-desc">قائمة المشترين مع ملخص لكل واحد: حقول المشتري (<code>id, name, phone, address, notes, created_at, updated_at</code>) و<code>sales_count</code> و<code>active_sales</code> و<code>late_count</code>.</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/customers.php?search=أحمد</span></div>
+  <p class="ep-desc">بحث سريع بالاسم أو الهاتف (حد أقصى 10 نتائج): <code>[{id, name, phone}]</code>. مناسب لحقل الإكمال التلقائي عند إنشاء عملية بيع.</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/customers.php?id=7</span></div>
+  <p class="ep-desc">تفاصيل مشترٍ واحد. تحتوي <code>sales[]</code>، وكل عملية بيع فيها <code>installments[]</code> بالإضافة إلى <code>paid_count</code> و<code>late_count</code> و<code>paid_amount</code>.</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge POST">POST</span><span class="path">/customers.php</span></div>
+  <p class="ep-desc">إضافة مشترٍ. الحقول: <code>name</code> و<code>phone</code> (مطلوبان)، و<code>address</code> و<code>notes</code> (اختياريان).</p>
+<pre><code>{ "success": true, "data": { "id": "15", "existing": false }, "message": "تمت إضافة المشتري بنجاح" }</code></pre>
+  <p>إذا وُجد مشترٍ بنفس الاسم والهاتف يعيد <code>success:true</code> مع <code>"existing": true</code> ومعرفه الحالي، دون إنشاء نسخة مكررة.</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge PUT">PUT</span><span class="path">/customers.php</span></div>
+  <p class="ep-desc">تعديل مشترٍ: <code>id</code> و<code>name</code> و<code>phone</code> (أرسلها كلها)، و<code>address</code> و<code>notes</code> اختياريان.</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge DELETE">DELETE</span><span class="path">/customers.php?id=7</span></div>
+  <div class="danger"><b>حذف متسلسل</b>حذف المشترِي يحذف معه <b>كل عمليات بيعه وأقساطها</b> نهائياً. اطلب تأكيداً واضحاً من المستخدم في التطبيق.</div>
+</div>
+
+<!-- ===================== SALES ===================== -->
+<h2 class="sec" id="sales">المبيعات <span class="ltr" style="font-size:.6em;color:var(--muted)">/sales.php</span></h2>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge POST">POST</span><span class="path">/sales.php</span></div>
+  <p class="ep-desc">تسجيل عملية بيع بالتقسيط. يُنشئ السيرفر جدول الأقساط تلقائياً.</p>
+<table>
+<tr><th>الحقل</th><th>مطلوب</th><th>ملاحظات</th></tr>
+<tr><td>customer_id</td><td>نعم</td><td>مشترٍ يخص المستخدم</td></tr>
+<tr><td>product_id</td><td>نعم</td><td>مادة تخص المستخدم</td></tr>
+<tr><td>product_name</td><td>نعم</td><td>اسم المادة (يُحفظ نسخة في عملية البيع)</td></tr>
+<tr><td>total_price</td><td>نعم</td><td>السعر الكلي للعملية (> 0)</td></tr>
+<tr><td>down_payment</td><td>لا</td><td>الدفعة المقدمة، الافتراضي 0، ويجب أن تكون أقل من السعر الكلي</td></tr>
+<tr><td>installments_count</td><td>نعم</td><td>عدد صحيح من 1 إلى 120</td></tr>
+<tr><td>installment_type</td><td>نعم</td><td><code>weekly</code> (كل 7 أيام) أو <code>monthly</code> (كل شهر)</td></tr>
+<tr><td>currency</td><td>نعم</td><td><code>USD</code> أو <code>LOCAL</code></td></tr>
+<tr><td>sale_date</td><td>نعم</td><td><code>YYYY-MM-DD</code>، ويبدأ أول قسط بعد فترة واحدة من هذا التاريخ</td></tr>
+<tr><td>quantity</td><td>لا</td><td>الافتراضي 1 (حتى 100000)</td></tr>
+<tr><td>notes</td><td>لا</td><td>نص</td></tr>
+</table>
+<pre><code>// الرد
+{ "success": true,
+  "data": { "sale_id": "22", "installment_value": 100, "remaining": 500, "stock_warning": "" },
+  "message": "تم تسجيل عملية البيع بنجاح" }</code></pre>
+<ul>
+  <li>القسط = (السعر الكلي − المقدمة) ÷ عدد الأقساط، والقسط الأخير يأخذ فرق التقريب.</li>
+  <li>إذا كانت المادة مفعّل عليها تتبع المخزن تُخصم الكمية تلقائياً، وقد يصبح المخزون سالباً. عندها يظهر التنبيه في <code>stock_warning</code> ويجب عرضه للمستخدم.</li>
+</ul>
+</div>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/sales.php</span></div>
+  <p class="ep-desc">كل عمليات البيع (الأحدث أولاً). كل عنصر فيه كل أعمدة العملية بالإضافة إلى <code>customer_name</code> و<code>customer_phone</code>.</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/sales.php?id=22</span></div>
+  <p class="ep-desc">عملية واحدة مع <code>installments[]</code>. إذا لم توجد يعيد HTTP 200 مع <code>success:false</code>.</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge DELETE">DELETE</span><span class="path">/sales.php?id=22</span></div>
+  <p class="ep-desc">حذف عملية البيع مع كل أقساطها، وتُعاد الكمية للمخزن إذا كان التتبع مفعّلاً.</p>
+</div>
+
+<!-- ===================== INSTALLMENTS ===================== -->
+<h2 class="sec" id="installments">الأقساط <span class="ltr" style="font-size:.6em;color:var(--muted)">/installments.php</span></h2>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/installments.php?filter=all</span></div>
+  <p class="ep-desc">قيم <code>filter</code>: <code>all</code> (الافتراضي) أو <code>late</code> أو <code>upcoming_week</code> أو <code>upcoming_month</code> أو <code>paid</code>. مرتبة حسب تاريخ الاستحقاق تصاعدياً.</p>
+<pre><code>{ "success": true, "data": [
+  { "id": 90, "sale_id": 22, "installment_number": 1, "amount": "100.00",
+    "due_date": "2026-10-01", "paid_date": null, "status": "pending", "notes": null,
+    "product_name": "غسالة", "currency": "USD",
+    "customer_id": 7, "customer_name": "علي", "customer_phone": "07701234567" } ] }</code></pre>
+</div>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge PUT">PUT</span><span class="path">/installments.php</span></div>
+  <p class="ep-desc">جسم الطلب فيه <code>id</code> (رقم القسط) و<code>action</code>، وثلاثة إجراءات:</p>
+<pre><code>{ "id": 90, "action": "pay", "paid_date": "2026-10-02" }   // تسجيل دفع (paid_date اختياري، الافتراضي اليوم)
+{ "id": 90, "action": "unpay" }                             // إلغاء الدفع
+{ "id": 90, "action": "update_notes", "notes": "وعد بالدفع" } // حفظ ملاحظة</code></pre>
+  <p>عند دفع آخر قسط تتحول عملية البيع إلى <code>completed</code> تلقائياً، وعند إلغاء دفع أي قسط ترجع <code>active</code>.</p>
+</div>
+
+<!-- ===================== INVENTORY ===================== -->
+<h2 class="sec" id="inventory">المخزن <span class="ltr" style="font-size:.6em;color:var(--muted)">/inventory.php</span></h2>
+
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/inventory.php</span></div>
+  <p class="ep-desc">كل المواد مع حالة مخزونها. الحقل <code>stock_status</code>: <code>not_tracked</code> أو <code>out_of_stock</code> أو <code>low_stock</code> أو <code>in_stock</code>.</p>
+<pre><code>{ "product_id": 5, "product_name": "ثلاجة", "price": "450.00", "currency": "USD",
+  "inventory_id": 2, "quantity": 4, "low_stock_threshold": 3,
+  "inventory_notes": null, "updated_at": "...", "stock_status": "in_stock" }</code></pre>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/inventory.php?product_id=5</span></div>
+  <p class="ep-desc">مخزون مادة واحدة (<code>data: null</code> إن لم يكن التتبع مفعلاً).</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/inventory.php?movements=5</span></div>
+  <p class="ep-desc">آخر 50 حركة للمادة. <code>movement_type</code>: <code>add</code> أو <code>subtract</code> أو <code>return</code> أو <code>adjustment</code>.</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/inventory.php?low_stock=1</span></div>
+  <p class="ep-desc">المواد التي وصلت كميتها للحد الأدنى أو أقل.</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge POST">POST</span><span class="path">/inventory.php</span></div>
+  <p class="ep-desc">تفعيل التتبع أو تعديل الكمية.</p>
+<table>
+<tr><th>الحقل</th><th>مطلوب</th><th>ملاحظات</th></tr>
+<tr><td>product_id</td><td>نعم</td><td>مادة تخص المستخدم</td></tr>
+<tr><td>quantity</td><td>لا</td><td>الكمية (الافتراضي 0)</td></tr>
+<tr><td>action</td><td>لا</td><td><code>set</code> (الافتراضي) لتحديد الكمية مباشرة، أو <code>add</code> لإضافتها إلى الحالية</td></tr>
+<tr><td>low_stock_threshold</td><td>لا</td><td>حد التنبيه، الافتراضي 3</td></tr>
+<tr><td>notes</td><td>لا</td><td>نص</td></tr>
+</table>
+<p>الرد: <code>data.quantity</code> (الكمية الجديدة).</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge PUT">PUT</span><span class="path">/inventory.php</span></div>
+  <p class="ep-desc">تعديل <code>low_stock_threshold</code> و<code>notes</code> فقط (مع <code>product_id</code>) دون تغيير الكمية.</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge DELETE">DELETE</span><span class="path">/inventory.php?product_id=5</span></div>
+  <p class="ep-desc">إيقاف تتبع المخزن لهذه المادة (لا يحذف المادة نفسها).</p>
+</div>
+
+<!-- ===================== REPORTS ===================== -->
+<h2 class="sec" id="reports">التقارير <span class="ltr" style="font-size:.6em;color:var(--muted)">/reports.php</span></h2>
+<p>كلها GET، وتشترك في المعاملات التالية:</p>
+<table>
+<tr><th>المعامل</th><th>القيم</th></tr>
+<tr><td>type</td><td><code>summary</code> (الافتراضي) | <code>by_product</code> | <code>top_selling</code> | <code>timeline</code> | <code>product_detail</code></td></tr>
+<tr><td>period</td><td><code>all</code> | <code>today</code> | <code>week</code> | <code>month</code> | <code>last_month</code> | <code>year</code> | <code>custom</code> (مع <code>from</code> و<code>to</code> بصيغة YYYY-MM-DD)</td></tr>
+<tr><td>currency</td><td><code>all</code> (الافتراضي) | <code>USD</code> | <code>LOCAL</code></td></tr>
+<tr><td>group_by</td><td>مع <code>timeline</code> فقط: <code>day</code> | <code>week</code> | <code>month</code> | <code>year</code></td></tr>
+<tr><td>product_id</td><td>مطلوب مع <code>product_detail</code></td></tr>
+</table>
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/reports.php?type=summary&amp;period=month&amp;currency=all</span></div>
+<pre><code>{ "success": true, "data": {
+  "period": "month", "date_from": "2026-09-01", "date_to": "2026-09-20",
+  "USD":   { "sales_count": 3, "items_sold": 4, "total_revenue": 1500, "total_cost": 1000,
+             "expected_profit": 500, "total_collected": 700, "actual_profit": 233.33 },
+  "LOCAL": { "sales_count": 0, "items_sold": 0, "total_revenue": 0, "total_cost": 0,
+             "expected_profit": 0, "total_collected": 0, "actual_profit": 0 } } }</code></pre>
+  <p><code>expected_profit</code> هو ربح كل المبيعات في الفترة، و<code>actual_profit</code> هو الربح المتوقع مضروباً بنسبة ما تم تحصيله فعلاً (المقدمات + الأقساط المدفوعة).</p>
+</div>
+<ul>
+  <li><code>by_product</code> و<code>top_selling</code>: مصفوفة لكل (مادة + عملة) فيها <code>sales_count</code> و<code>total_quantity</code> و<code>total_revenue</code> و<code>expected_profit</code> (وفي <code>by_product</code> أيضاً <code>total_cost</code> و<code>avg_cost</code> و<code>avg_unit_price</code>). <code>top_selling</code> محدود بـ 20.</li>
+  <li><code>timeline</code>: مصفوفة لكل (فترة + عملة) فيها الحقل <code>period</code> ثم الإجماليات، وتُعاد آخر 24 فترة فقط.</li>
+  <li><code>product_detail</code>: عمليات بيع المادة مع <code>customer_name</code>.</li>
+</ul>
+
+<!-- ===================== SETTINGS ===================== -->
+<h2 class="sec" id="settings">الإعدادات <span class="ltr" style="font-size:.6em;color:var(--muted)">/settings.php</span></h2>
+<div class="ep">
+  <div class="ep-head"><span class="badge GET">GET</span><span class="path">/settings.php</span></div>
+  <p class="ep-desc">كائن مفاتيح وقيم، مثل: <code>store_name</code> و<code>currency_name</code> و<code>currency_symbol</code> و<code>exchange_rate</code> و<code>whatsapp_template</code>. وفيه أيضاً <code>subscription_remaining_days</code> (رقم الأيام المتبقية للاشتراك، أو <code>null</code>) لعرض تنبيه قبل الانتهاء. المفاتيح غير المحفوظة لا تظهر، فتعامل معها كقيم افتراضية.</p>
+</div>
+<div class="ep">
+  <div class="ep-head"><span class="badge PUT">PUT</span><span class="path">/settings.php</span></div>
+  <p class="ep-desc">حفظ إعدادات، وترسل المفاتيح المراد تغييرها فقط (POST يعمل مثله):</p>
+<pre><code>{ "store_name": "معرض الأمل", "exchange_rate": "1480" }</code></pre>
+  <p>المفاتيح المسموحة هي الخمسة أعلاه فقط، وأي مفتاح آخر يعيد 400. القيمة النصية بحد أقصى 5000 حرف، و<code>exchange_rate</code> رقم أكبر من 0.</p>
+</div>
+
+<!-- ===================== DART ===================== -->
+<h2 class="sec" id="dart">مثال Dart (حزمة dio)</h2>
+<pre><code>import 'package:dio/dio.dart';
+
+class AksatApi {
+  AksatApi(this.baseUrl) {
+    _dio = Dio(BaseOptions(
+      baseUrl: baseUrl,                       // 'https://aksat.store/api/'
+      headers: {'Content-Type': 'application/json'},
+      validateStatus: (_) =&gt; true,            // نعالج 401/403/429 بأنفسنا
+    ));
+    _dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+      if (_token != null) {
+        o.headers['Authorization'] = 'Bearer $_token';
+        o.headers['X-Authorization'] = 'Bearer $_token';
+      }
+      h.next(o);
+    }));
+  }
+
+  // أنشئ الأصناف SessionExpired و SubscriptionStopped و ApiError حسب تصميم تطبيقك
+  final String baseUrl;
+  late final Dio _dio;
+  String? _token;   // خزّنه في flutter_secure_storage
+
+  Future&lt;Map&lt;String, dynamic&gt;&gt; _send(Future&lt;Response&gt; req) async {
+    final res = await req;
+    final body = Map&lt;String, dynamic&gt;.from(res.data as Map);
+    if (res.statusCode == 401) throw SessionExpired();          // ارجع لشاشة الدخول
+    if (res.statusCode == 403) throw SubscriptionStopped(body); // اعرض رسالة الإيقاف
+    if (body['success'] != true) throw ApiError(body['message']?.toString() ?? 'خطأ');
+    return body;
+  }
+
+  Future&lt;void&gt; login(String email, String password) async {
+    final body = await _send(_dio.post('login.php',
+        data: {'email': email, 'password': password}));
+    _token = body['data']['token'];
+  }
+
+  Future&lt;List&gt; products() async =&gt;
+      (await _send(_dio.get('products.php')))['data'] as List;
+
+  Future&lt;void&gt; payInstallment(int id, {String? paidDate}) =&gt;
+      _send(_dio.put('installments.php',
+          data: {'id': id, 'action': 'pay', if (paidDate != null) 'paid_date': paidDate}));
+}
+
+double toNum(dynamic v) =&gt; double.tryParse(v?.toString() ?? '') ?? 0;</code></pre>
+
+<h2 class="sec" id="errors">أكواد الأخطاء</h2>
+<table>
+<tr><th>HTTP</th><th>متى</th></tr>
+<tr><td>200 + success:false</td><td>خطأ تحقق في بعض الـ endpoints (اقرأ <code>message</code>)</td></tr>
+<tr><td>400</td><td>بيانات غير صالحة (المواد، المبيعات، الإعدادات، الأقساط)</td></tr>
+<tr><td>401</td><td>توكن غير موجود أو منتهٍ أو غير صالح، أو بيانات دخول خاطئة</td></tr>
+<tr><td>403</td><td>الاشتراك موقوف أو منتهٍ</td></tr>
+<tr><td>404</td><td>العنصر غير موجود أو لا يخص هذا المستخدم</td></tr>
+<tr><td>405</td><td>طريقة HTTP غير مدعومة في هذا الـ endpoint</td></tr>
+<tr><td>409</td><td>حذف مادة مرتبطة بمبيعات</td></tr>
+<tr><td>429</td><td>محاولات كثيرة (الدخول أو التسجيل)</td></tr>
+<tr><td>500</td><td>خطأ في السيرفر، والرسالة عامة دون تفاصيل تقنية</td></tr>
+</table>
+
+<h2 class="sec" id="checklist">نقاط انتباه للمبرمج</h2>
+<ol>
+  <li>خزّن التوكن في <code>flutter_secure_storage</code> وليس في SharedPreferences.</li>
+  <li>عند أي 401 امسح التوكن وأعد المستخدم لشاشة الدخول، وعند 403 اعرض رسالة إيقاف الاشتراك ولا تعِد المحاولة تلقائياً.</li>
+  <li>بعد أي تعديل على مبيعات أو أقساط أو مخزن، أعد جلب <code>/dashboard.php</code> لتحديث الأرقام.</li>
+  <li>استخدم <code>?search=</code> لحقل اختيار المشتري بدلاً من جلب القائمة كاملة.</li>
+  <li>أظهر <code>stock_warning</code> بعد كل عملية بيع، وأظهر <code>subscription_remaining_days</code> عندما يقترب من الصفر.</li>
+  <li>نظام العملتين: اعرض المبالغ مع رمز العملة من الإعدادات (<code>currency_symbol</code>)، ولا تجمع <code>USD</code> مع <code>LOCAL</code> في رقم واحد.</li>
+  <li>حذف المشتري أو عملية البيع لا رجعة فيه، فضع رسالة تأكيد قبله.</li>
+</ol>
+
+<footer>هذا التوثيق مبني على قراءة كود ملفات <code>api/*.php</code> الحالي. إذا تغيّر الكود فيجب تحديثه.</footer>
+</main>
+</div>
+</body>
+</html>
