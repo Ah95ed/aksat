@@ -9,6 +9,7 @@ class Installment {
     required this.productName,
     required this.customerName,
     required this.customerPhone,
+    this.customerId = '',
     this.paidDate,
     this.notes,
     this.currency = 'USD',
@@ -23,6 +24,7 @@ class Installment {
   final String productName;
   final String customerName;
   final String customerPhone;
+  final String customerId;
   final String? paidDate;
   final String? notes;
   final String currency;

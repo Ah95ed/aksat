@@ -15,10 +15,13 @@ class AuthController extends ChangeNotifier {
   User? user;
   String? errorMessage;
   int? retryAfterSeconds;
+  bool isSubscriptionStopped = false;
+  String? subscriptionWhatsappPhone = '9647706118992';
 
   void clearError() {
     errorMessage = null;
     retryAfterSeconds = null;
+    isSubscriptionStopped = false;
     notifyListeners();
   }
 
@@ -65,6 +68,7 @@ class AuthController extends ChangeNotifier {
       errorMessage =
           'محاولات كثيرة. أعد المحاولة بعد ${error.retryAfterSeconds} ثانية.';
     } on SubscriptionStopped {
+      isSubscriptionStopped = true;
       errorMessage = 'الاشتراك متوقف أو منتهٍ.';
     } on ApiError catch (error) {
       errorMessage = error.message;

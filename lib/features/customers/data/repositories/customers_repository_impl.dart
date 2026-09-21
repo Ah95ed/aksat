@@ -1,4 +1,5 @@
 import '../../domain/entities/customer.dart';
+import '../../domain/entities/customer_detail.dart';
 import '../../domain/repositories/customers_repository.dart';
 import '../datasources/customers_remote_datasource.dart';
 import '../models/customer_model.dart';
@@ -11,6 +12,9 @@ class CustomersRepositoryImpl implements CustomersRepository {
   @override
   Future<List<Customer>> fetchAll({String? search}) =>
       _remote.fetchAll(search: search);
+
+  @override
+  Future<CustomerDetail> fetchById(String id) => _remote.fetchById(id);
 
   @override
   Future<Customer> create(Customer customer) =>

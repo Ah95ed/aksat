@@ -1,5 +1,6 @@
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../models/customer_detail_model.dart';
 import '../models/customer_model.dart';
 
 class CustomersRemoteDataSource {
@@ -18,6 +19,15 @@ class CustomersRemoteDataSource {
         .whereType<Map<String, dynamic>>()
         .map(CustomerModel.fromJson)
         .toList();
+  }
+
+  Future<CustomerDetailModel> fetchById(String id) async {
+    final response = await _apiClient.get(
+      ApiEndpoints.customers,
+      query: {'id': id},
+    );
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    return CustomerDetailModel.fromJson(data);
   }
 
   Future<CustomerModel> create(CustomerModel customer) async {

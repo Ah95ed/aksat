@@ -80,7 +80,7 @@ flutter test
 
 ## الأمان
 
-- الاتصال بواجهة API يستخدم HTTPS، والـ token يُحفظ في `flutter_secure_storage` ولا يُحفظ في `SharedPreferences`.
+- الاتصال بواجهة API يستخدم HTTPS، والـ token يُحفظ أولاً في `flutter_secure_storage`، مع نسخة احتياطية في `SharedPreferences` لدعم استعادة الجلسة على Flutter Web.
 - طلبات البيانات المحمية ترسل token بصيغة Bearer، بينما يبقى التحقق من الصلاحيات وصحة البيانات مسؤولية الخادم.
 - نسخة Android Release تستخدم R8 وResource Shrinking، ونسخة CI تستخدم Dart obfuscation مع حفظ ملفات فك الرموز خارج التطبيق.
 - لا يجب وضع مفاتيح API أو كلمات مرور أو أسرار داخل كود Flutter؛ تُحفظ أسرار التوقيع في GitHub Secrets أو بيئة البناء.

@@ -1,0 +1,20 @@
+Options -Indexes
+
+<FilesMatch "^(composer\.json|composer\.lock|package\.json|package-lock\.json|README\.md|.*\.sql|.*\.log|.*\.env.*|config\.local\.php)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Never rewrite API requests to the Vue SPA.
+    RewriteRule ^api/ - [L]
+
+    # Serve existing files/directories normally.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Vue hash routing does not need server-side routes, but this keeps direct asset-safe fallback behavior.
+    RewriteRule . /index.html [L]
+</IfModule>

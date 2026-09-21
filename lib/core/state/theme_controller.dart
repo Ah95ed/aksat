@@ -8,6 +8,10 @@ class ThemeController extends ChangeNotifier {
   final PrefsService _prefs;
   ThemeMode mode;
 
+  bool get isDark => mode == ThemeMode.dark;
+
+  Future<void> toggle() => setMode(isDark ? ThemeMode.light : ThemeMode.dark);
+
   Future<void> setMode(ThemeMode value) async {
     if (mode == value) return;
     mode = value;

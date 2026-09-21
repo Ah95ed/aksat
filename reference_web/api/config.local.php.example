@@ -1,0 +1,10 @@
+<?php
+// انسخ هذا الملف باسم config.local.php على السيرفر، ثم ضع القيم الحقيقية.
+return [
+    'JWT_SECRET' => 'GENERATE_A_UNIQUE_RANDOM_SECRET_AT_LEAST_32_BYTES',
+    'DB_HOST' => 'localhost',
+    'DB_NAME' => 'aksat_aksatmaadmaad',
+    'DB_USER' => 'aksat_maadnowaksat',
+    'DB_PASS' => 'Xjt0TwdCSqVd95',
+    'APP_ORIGINS' => ['https://aksat.store', 'https://www.aksat.store'],
+];

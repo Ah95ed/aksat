@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/state/locale_controller.dart';
 import '../../../../core/state/theme_controller.dart';
 import '../../../../core/state/view_state.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimens.dart';
+import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/app_dialogs.dart';
+import '../../../../core/widgets/app_spinner.dart';
+import '../../../../core/widgets/app_text_field.dart';
 import '../../domain/entities/store_settings.dart';
 import '../controllers/settings_controller.dart';
 
@@ -16,25 +25,21 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _storeName;
-  late final TextEditingController _currencyName;
-  late final TextEditingController _currencySymbol;
-  late final TextEditingController _exchangeRate;
-  late final TextEditingController _whatsappTemplate;
+  final _storeName = TextEditingController();
+  final _currencyName = TextEditingController();
+  final _currencySymbol = TextEditingController();
+  final _exchangeRate = TextEditingController();
+  final _whatsappTemplate = TextEditingController();
+
   bool _initialized = false;
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _storeName = TextEditingController();
-    _currencyName = TextEditingController();
-    _currencySymbol = TextEditingController();
-    _exchangeRate = TextEditingController();
-    _whatsappTemplate = TextEditingController();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => context.read<SettingsController>().load(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SettingsController>().load();
+    });
   }
 
   @override
@@ -51,174 +56,313 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_initialized) return;
     _initialized = true;
     _storeName.text = value.storeName;
-    _currencyName.text = value.currencyName;
-    _currencySymbol.text = value.currencySymbol;
-    _exchangeRate.text = value.exchangeRate;
+    _currencyName.text = value.currencyName.isNotEmpty ? value.currencyName : 'دينار';
+    _currencySymbol.text = value.currencySymbol.isNotEmpty ? value.currencySymbol : 'د.ع';
+    _exchangeRate.text = value.exchangeRate.isNotEmpty ? value.exchangeRate : '1450';
     _whatsappTemplate.text = value.whatsappTemplate;
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
     final controller = context.read<SettingsController>();
-    final saved = await controller.update(
-      StoreSettings(
-        storeName: _storeName.text.trim(),
-        currencyName: _currencyName.text.trim(),
-        currencySymbol: _currencySymbol.text.trim(),
-        exchangeRate: _exchangeRate.text.trim(),
-        whatsappTemplate: _whatsappTemplate.text.trim(),
-        subscriptionRemainingDays:
-            controller.settings.subscriptionRemainingDays,
-      ),
+
+    final updated = StoreSettings(
+      storeName: _storeName.text.trim(),
+      currencyName: _currencyName.text.trim(),
+      currencySymbol: _currencySymbol.text.trim(),
+      exchangeRate: _exchangeRate.text.trim(),
+      whatsappTemplate: _whatsappTemplate.text.trim(),
+      subscriptionRemainingDays: controller.settings.subscriptionRemainingDays,
     );
+
+    final saved = await controller.update(updated);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          saved
-              ? 'تم حفظ الإعدادات.'
-              : controller.errorMessage ?? 'تعذر الحفظ.',
-        ),
-      ),
-    );
+    setState(() => _saving = false);
+
+    if (saved) {
+      AppDialogs.alert(context, '✅ تم حفظ الإعدادات');
+    } else {
+      AppDialogs.alert(context, 'فشل: ${controller.errorMessage ?? "حدث خطأ"}');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<SettingsController>();
     _fill(controller.settings);
-    final locale = context.watch<LocaleController>();
     final theme = context.watch<ThemeController>();
-    final english = locale.locale.languageCode == 'en';
-    final title = english ? 'Settings' : 'الإعدادات';
+    final locale = context.watch<LocaleController>();
 
-    return Directionality(
-      textDirection: english ? TextDirection.ltr : TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: controller.state.isLoading && !_initialized
-            ? const Center(child: CircularProgressIndicator())
-            : Form(
-                key: _formKey,
-                child: ListView(
-                  padding: EdgeInsets.all(16.w),
+    if (controller.state == ViewState.loading && !_initialized) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(child: AppSpinner(size: 40)),
+      );
+    }
+
+    return SingleChildScrollView(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 768),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Text(
+                '⚙️ الإعدادات',
+                style: AppTextStyles.xxxlBold(AppColors.gray800),
+              ),
+              const SizedBox(height: 24),
+
+              // Card 1: Store info
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _SectionTitle(english ? 'Appearance' : 'المظهر'),
-                    DropdownButtonFormField<ThemeMode>(
-                      initialValue: theme.mode,
-                      decoration: InputDecoration(
-                        labelText: english ? 'Theme' : 'الثيم',
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: ThemeMode.system,
-                          child: Text(english ? 'System' : 'حسب النظام'),
-                        ),
-                        DropdownMenuItem(
-                          value: ThemeMode.light,
-                          child: Text(english ? 'Light' : 'نهاري'),
-                        ),
-                        DropdownMenuItem(
-                          value: ThemeMode.dark,
-                          child: Text(english ? 'Dark' : 'ليلي'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) theme.setMode(value);
-                      },
+                    Text(
+                      '🏪 معلومات المتجر',
+                      style: AppTextStyles.xlBold(AppColors.blue700),
                     ),
-                    SizedBox(height: 12.h),
-                    DropdownButtonFormField<String>(
-                      initialValue: locale.locale.languageCode,
-                      decoration: InputDecoration(
-                        labelText: english ? 'Language' : 'اللغة',
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'ar', child: Text('العربية')),
-                        DropdownMenuItem(value: 'en', child: Text('English')),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) locale.setLocale(value);
-                      },
+                    const SizedBox(height: 12),
+                    const Divider(height: 1, color: AppColors.gray200),
+                    const SizedBox(height: 16),
+                    AppTextField(
+                      controller: _storeName,
+                      label: 'اسم المتجر',
                     ),
-                    SizedBox(height: 20.h),
-                    _SectionTitle(
-                      english ? 'Store settings' : 'إعدادات المتجر',
-                    ),
-                    _field(_storeName, english ? 'Store name' : 'اسم المتجر'),
-                    _field(
-                      _currencyName,
-                      english ? 'Local currency name' : 'اسم العملة المحلية',
-                    ),
-                    _field(
-                      _currencySymbol,
-                      english ? 'Currency symbol' : 'رمز العملة',
-                    ),
-                    _field(
-                      _exchangeRate,
-                      english ? 'Exchange rate' : 'سعر الصرف',
-                      number: true,
-                    ),
-                    _field(
-                      _whatsappTemplate,
-                      english ? 'WhatsApp template' : 'قالب واتساب',
-                      maxLines: 4,
-                    ),
-                    SizedBox(height: 20.h),
-                    FilledButton.icon(
-                      onPressed: controller.state.isLoading ? null : _save,
-                      icon: const Icon(Icons.save_outlined),
-                      label: Text(english ? 'Save settings' : 'حفظ الإعدادات'),
-                    ),
-                    if (controller.settings.subscriptionRemainingDays !=
-                        null) ...[
-                      SizedBox(height: 16.h),
-                      Text(
-                        english
-                            ? 'Subscription remaining days: ${controller.settings.subscriptionRemainingDays}'
-                            : 'الأيام المتبقية للاشتراك: ${controller.settings.subscriptionRemainingDays}',
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // Card 2: Currency settings
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '💱 إعدادات العملة',
+                      style: AppTextStyles.xlBold(AppColors.blue700),
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1, color: AppColors.gray200),
+                    const SizedBox(height: 16),
+
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWide = constraints.maxWidth >= 500;
+                        final nameField = AppTextField(
+                          controller: _currencyName,
+                          label: 'اسم العملة المحلية',
+                          hint: 'مثال: دينار، ريال، جنيه',
+                        );
+                        final symField = AppTextField(
+                          controller: _currencySymbol,
+                          label: 'رمز العملة',
+                          hint: 'مثال: د.ع، ر.س',
+                        );
+
+                        if (isWide) {
+                          return Row(
+                            children: [
+                              Expanded(child: nameField),
+                              const SizedBox(width: 16),
+                              Expanded(child: symField),
+                            ],
+                          );
+                        }
+                        return Column(
+                          children: [
+                            nameField,
+                            const SizedBox(height: 12),
+                            symField,
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    AppTextField(
+                      controller: _exchangeRate,
+                      label: 'سعر صرف الدولار (1\$ = ?)',
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      hint: '1450',
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'أدخل قيمة الدولار الواحد بالعملة المحلية. مثال: 1450 للدينار العراقي',
+                      style: AppTextStyles.xs(AppColors.gray500),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Card 3: WhatsApp template
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '💬 قالب رسالة الواتساب',
+                      style: AppTextStyles.xlBold(AppColors.blue700),
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1, color: AppColors.gray200),
+                    const SizedBox(height: 16),
+
+                    AppTextField(
+                      controller: _whatsappTemplate,
+                      label: 'القالب',
+                      maxLines: 6,
+                    ),
+                    const SizedBox(height: 8),
+
+                    Text('المتغيرات المتاحة:', style: AppTextStyles.xs(AppColors.gray600)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: const [
+                        _VariableChip(code: '{customer_name}', label: 'اسم المشتري'),
+                        _VariableChip(code: '{product_name}', label: 'اسم المادة'),
+                        _VariableChip(code: '{amount}', label: 'مبلغ القسط'),
+                        _VariableChip(code: '{currency}', label: 'رمز العملة'),
+                        _VariableChip(code: '{due_date}', label: 'تاريخ الاستحقاق'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Save Button
+              AppButton(
+                text: _saving ? '⏳ جاري الحفظ...' : '💾 حفظ التغييرات',
+                variant: AppButtonVariant.primary,
+                size: AppButtonSize.large,
+                isLoading: _saving,
+                onPressed: _saving ? null : _save,
+              ),
+              const SizedBox(height: 20),
+
+              // Card 4: System info
+              AppCard(
+                color: AppColors.gray50,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ℹ️ معلومات النظام',
+                      style: AppTextStyles.xlBold(AppColors.gray700),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('إصدار النظام:', style: AppTextStyles.base(AppColors.gray600)),
+                        Text(AppConfig.appVersion, style: AppTextStyles.baseBold(AppColors.gray800)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text('حالة قاعدة البيانات:', style: TextStyle(color: Color(0xFF4B5563))),
+                        AppBadge(label: 'متصلة', variant: AppBadgeVariant.success),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Card 5: Appearance & Language
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '🎨 المظهر واللغة',
+                      style: AppTextStyles.xlBold(AppColors.blue700),
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1, color: AppColors.gray200),
+                    const SizedBox(height: 16),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('الوضع الداكن', style: AppTextStyles.baseMedium(AppColors.gray800)),
+                            Text('تفعيل النمط الليلي للتطبيق', style: AppTextStyles.xs(AppColors.gray500)),
+                          ],
+                        ),
+                        Switch(
+                          value: theme.isDark,
+                          onChanged: (_) => theme.toggle(),
+                          activeThumbColor: AppColors.blue600,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('اللغة', style: AppTextStyles.baseMedium(AppColors.gray800)),
+                            Text('العربية / English', style: AppTextStyles.xs(AppColors.gray500)),
+                          ],
+                        ),
+                        DropdownButton<String>(
+                          value: locale.locale.languageCode,
+                          items: const [
+                            DropdownMenuItem(value: 'ar', child: Text('العربية')),
+                            DropdownMenuItem(value: 'en', child: Text('English')),
+                          ],
+                          onChanged: (lang) {
+                            if (lang != null) locale.setLocale(lang);
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
       ),
     );
   }
-
-  Widget _field(
-    TextEditingController controller,
-    String label, {
-    bool number = false,
-    int maxLines = 1,
-  }) => Padding(
-    padding: EdgeInsets.only(bottom: 12.h),
-    child: TextFormField(
-      controller: controller,
-      maxLines: maxLines,
-      keyboardType: number
-          ? const TextInputType.numberWithOptions(decimal: true)
-          : TextInputType.text,
-      decoration: InputDecoration(labelText: label),
-      validator: (value) =>
-          number &&
-              value != null &&
-              value.isNotEmpty &&
-              double.tryParse(value) == null
-          ? 'أدخل رقماً صحيحاً.'
-          : null,
-    ),
-  );
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title);
-  final String title;
+class _VariableChip extends StatelessWidget {
+  const _VariableChip({required this.code, required this.label});
+  final String code;
+  final String label;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.only(bottom: 10.h),
-    child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-  );
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.gray100,
+        borderRadius: AppDimens.borderSm,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(code, style: const TextStyle(fontFamily: 'monospace', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
+          const SizedBox(width: 4),
+          Text('- $label', style: AppTextStyles.xs(AppColors.gray600)),
+        ],
+      ),
+    );
+  }
 }

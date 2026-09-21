@@ -1,8 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimens.dart';
+import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/money_formatter.dart';
+import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/app_dialogs.dart';
+import '../../../../core/widgets/app_modal.dart';
+import '../../../../core/widgets/app_spinner.dart';
+import '../../../../core/widgets/app_table.dart';
+import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/empty_view.dart';
+import '../../../../core/widgets/filter_pill.dart';
+import '../../../../core/widgets/info_banner.dart';
 import '../../../../core/state/view_state.dart';
+import '../../../settings/presentation/controllers/settings_controller.dart';
 import '../../domain/entities/inventory_item.dart';
 import '../../domain/entities/inventory_movement.dart';
 import '../controllers/inventory_controller.dart';
@@ -15,327 +31,657 @@ class InventoryPage extends StatefulWidget {
 }
 
 class _InventoryPageState extends State<InventoryPage> {
+  final _searchController = TextEditingController();
+  String _search = '';
+  String _filter = 'all'; // all, tracked, low_stock, out_of_stock, not_tracked
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => context.read<InventoryController>().load(),
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<InventoryController>().load();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _openStockModal(InventoryItem item) {
+    final isTracked = item.stockStatus != 'not_tracked';
+    String action = isTracked ? 'add' : 'set';
+    final qtyCtrl = TextEditingController(text: isTracked ? '' : '0');
+    final thresholdCtrl = TextEditingController(
+      text: isTracked ? item.lowStockThreshold.toString() : '3',
     );
+    final notesCtrl = TextEditingController();
+    bool isSaving = false;
+
+    AppModal.show(
+      context: context,
+      maxWidth: AppModalMaxWidth.md,
+      child: StatefulBuilder(
+        builder: (modalCtx, setModalState) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                isTracked ? '📦 تحديث المخزن' : '📦 تفعيل المخزن',
+                style: AppTextStyles.xxlBold(AppColors.gray800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                item.productName,
+                style: AppTextStyles.base(AppColors.gray600),
+              ),
+              const SizedBox(height: 16),
+
+              if (isTracked) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue50,
+                    borderRadius: AppDimens.borderLg,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('الكمية الحالية:', style: AppTextStyles.baseMedium(AppColors.blue700)),
+                      Text(
+                        '${item.quantity}',
+                        style: AppTextStyles.xlBold(AppColors.blue700),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Operation type
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('نوع العملية', style: AppTextStyles.smSemibold(AppColors.gray700)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: AppDimens.borderLg,
+                      border: Border.all(color: AppColors.gray300),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: action,
+                        isExpanded: true,
+                        items: [
+                          DropdownMenuItem(
+                            value: 'set',
+                            child: Text(
+                              isTracked
+                                  ? 'تعيين الكمية (استبدال بـ)'
+                                  : 'تعيين الكمية (البدء بـ)',
+                            ),
+                          ),
+                          const DropdownMenuItem(
+                            value: 'add',
+                            child: Text('إضافة للكمية الحالية'),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setModalState(() => action = val);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Quantity field
+              AppTextField(
+                label: action == 'add' ? 'الكمية المراد إضافتها *' : 'الكمية الجديدة *',
+                controller: qtyCtrl,
+                hintText: 'مثال: 10',
+                keyboardType: TextInputType.number,
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+
+              // Threshold field
+              AppTextField(
+                label: 'حد التنبيه (عند الوصول لهذا الرقم)',
+                controller: thresholdCtrl,
+                hintText: 'مثال: 3',
+                helperText: 'سيظهر تنبيه عندما تصل الكمية لهذا الحد أو أقل',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+
+              // Notes
+              AppTextField(
+                label: 'ملاحظات',
+                controller: notesCtrl,
+                hintText: 'اختياري',
+                maxLines: 2,
+              ),
+              const SizedBox(height: 24),
+
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      text: isSaving ? '⏳ جاري الحفظ...' : '💾 حفظ',
+                      isLoading: isSaving,
+                      onPressed: isSaving
+                          ? null
+                          : () async {
+                              final q = int.tryParse(qtyCtrl.text.trim());
+                              final t = int.tryParse(thresholdCtrl.text.trim()) ?? 3;
+
+                              if (q == null || q < 0) {
+                                AppDialogs.alert(context, 'الكمية يجب أن تكون 0 أو أكثر');
+                                return;
+                              }
+
+                              setModalState(() => isSaving = true);
+                              final ctrl = context.read<InventoryController>();
+                              final ok = await ctrl.save(
+                                productId: item.productId,
+                                quantity: q,
+                                action: action,
+                                lowStockThreshold: t,
+                                notes: notesCtrl.text.trim(),
+                              );
+
+                              if (modalCtx.mounted) {
+                                setModalState(() => isSaving = false);
+                              }
+
+                              if (ok) {
+                                if (modalCtx.mounted) Navigator.of(modalCtx).pop();
+                              } else if (mounted) {
+                                AppDialogs.alert(context, 'فشل: ${ctrl.errorMessage ?? 'حدث خطأ'}');
+                              }
+                            },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AppButton(
+                      text: 'إلغاء',
+                      variant: AppButtonVariant.secondary,
+                      onPressed: () => Navigator.of(modalCtx).pop(),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _viewMovements(InventoryItem item) async {
+    final ctrl = context.read<InventoryController>();
+    List<InventoryMovement>? movements;
+    bool loading = true;
+
+    AppModal.show(
+      context: context,
+      maxWidth: AppModalMaxWidth.xl2,
+      child: StatefulBuilder(
+        builder: (modalCtx, setModalState) {
+          if (loading) {
+            ctrl.movements(item.productId).then((list) {
+              if (modalCtx.mounted) {
+                setModalState(() {
+                  movements = list;
+                  loading = false;
+                });
+              }
+            }).catchError((_) {
+              if (modalCtx.mounted) {
+                setModalState(() {
+                  loading = false;
+                  movements = [];
+                });
+              }
+            });
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '📋 حركات المخزن',
+                style: AppTextStyles.xxlBold(AppColors.gray800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                item.productName,
+                style: AppTextStyles.base(AppColors.gray600),
+              ),
+              const SizedBox(height: 16),
+
+              if (loading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32),
+                  child: Center(child: AppSpinner(size: 32)),
+                )
+              else if (movements == null || movements!.isEmpty)
+                const EmptyView(message: 'لا توجد حركات بعد', inCard: false, compact: true)
+              else
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 400),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: movements!.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (ctx, i) {
+                      final m = movements![i];
+                      String typeEmoji = '📝';
+                      String typeLabel = 'حركة';
+                      Color typeBg = AppColors.gray50;
+
+                      switch (m.type) {
+                        case 'add':
+                          typeEmoji = '➕';
+                          typeLabel = 'إضافة';
+                          typeBg = AppColors.green50;
+                          break;
+                        case 'subtract':
+                          typeEmoji = '➖';
+                          typeLabel = 'بيع/خصم';
+                          typeBg = AppColors.red50;
+                          break;
+                        case 'return':
+                          typeEmoji = '↩️';
+                          typeLabel = 'استرجاع (حذف بيع)';
+                          typeBg = AppColors.blue50;
+                          break;
+                        case 'adjustment':
+                          typeEmoji = '✏️';
+                          typeLabel = 'تعديل';
+                          typeBg = AppColors.amber50;
+                          break;
+                      }
+
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: typeBg,
+                          borderRadius: AppDimens.borderLg,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$typeEmoji $typeLabel ${m.quantity}',
+                                  style: AppTextStyles.baseBold(AppColors.gray800),
+                                ),
+                                if (m.notes != null && m.notes!.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    m.notes!,
+                                    style: AppTextStyles.xs(AppColors.gray600),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            Text(
+                              DateFormatter.formatDateShort(m.createdAt),
+                              style: AppTextStyles.xs(AppColors.gray500),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+              AppButton(
+                text: 'إغلاق',
+                variant: AppButtonVariant.secondary,
+                fullWidth: true,
+                onPressed: () => Navigator.of(modalCtx).pop(),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _stopTracking(InventoryItem item) async {
+    final confirmed = await AppDialogs.confirm(
+      context,
+      'إيقاف تتبع المخزن لـ "${item.productName}"؟\n\nسيتم حذف بيانات الكمية والحركات.',
+    );
+    if (!confirmed || !mounted) return;
+
+    final ctrl = context.read<InventoryController>();
+    final ok = await ctrl.disable(item.productId);
+    if (!ok && mounted) {
+      AppDialogs.alert(context, 'فشل: ${ctrl.errorMessage ?? 'حدث خطأ'}');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<InventoryController>();
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('المخزن'),
-          actions: [
-            IconButton(
-              onPressed: () =>
-                  controller.load(lowStock: !controller.lowStockOnly),
-              icon: Icon(
-                controller.lowStockOnly
-                    ? Icons.filter_alt_rounded
-                    : Icons.filter_alt_outlined,
-              ),
-              tooltip: 'المخزون المنخفض',
-            ),
-          ],
-        ),
-        body: _InventoryBody(controller: controller),
-      ),
-    );
-  }
-}
+    final settingsCtrl = context.watch<SettingsController>();
+    final settings = settingsCtrl.settings;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < AppDimens.breakpointMd;
 
-class _InventoryBody extends StatelessWidget {
-  const _InventoryBody({required this.controller});
+    final allItems = controller.items;
+    final trackedCount = allItems.where((i) => i.stockStatus != 'not_tracked').length;
+    final lowStockCount = allItems.where((i) => i.stockStatus == 'low_stock').length;
+    final outOfStockCount = allItems.where((i) => i.stockStatus == 'out_of_stock').length;
+    final notTrackedCount = allItems.where((i) => i.stockStatus == 'not_tracked').length;
 
-  final InventoryController controller;
+    final q = _search.toLowerCase();
+    final filtered = allItems.where((item) {
+      if (_filter == 'tracked' && item.stockStatus == 'not_tracked') return false;
+      if (_filter == 'low_stock' && item.stockStatus != 'low_stock') return false;
+      if (_filter == 'out_of_stock' && item.stockStatus != 'out_of_stock') return false;
+      if (_filter == 'not_tracked' && item.stockStatus != 'not_tracked') return false;
 
-  @override
-  Widget build(BuildContext context) {
-    if (controller.state.isLoading && controller.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (controller.state.isError && controller.items.isEmpty) {
-      return Center(
-        child: TextButton.icon(
-          onPressed: controller.load,
-          icon: const Icon(Icons.refresh_rounded),
-          label: Text(controller.errorMessage ?? 'إعادة المحاولة'),
-        ),
-      );
-    }
-    if (controller.items.isEmpty) {
-      return Center(
-        child: Text(
-          controller.lowStockOnly
-              ? 'لا توجد مواد منخفضة المخزون.'
-              : 'لا توجد مواد في المخزن بعد.',
-        ),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: controller.load,
-      child: ListView.separated(
-        padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
-        itemCount: controller.items.length,
-        separatorBuilder: (_, _) => SizedBox(height: 10.h),
-        itemBuilder: (_, index) =>
-            _InventoryCard(item: controller.items[index]),
-      ),
-    );
-  }
-}
+      if (q.isNotEmpty) {
+        return item.productName.toLowerCase().contains(q);
+      }
+      return true;
+    }).toList();
 
-class _InventoryCard extends StatelessWidget {
-  const _InventoryCard({required this.item});
-
-  final InventoryItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = context.read<InventoryController>();
-    final statusColor = switch (item.stockStatus) {
-      'out_of_stock' => Colors.red,
-      'low_stock' => Colors.orange,
-      'in_stock' => Colors.green,
-      _ => Theme.of(context).colorScheme.outline,
-    };
-    final statusText = switch (item.stockStatus) {
-      'out_of_stock' => 'نفد المخزون',
-      'low_stock' => 'مخزون منخفض',
-      'in_stock' => 'متوفر',
-      _ => 'غير مفعّل',
-    };
-
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(14.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    item.productName,
-                    style: Theme.of(context).textTheme.titleMedium,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Header & Filter Pills
+        if (isMobile)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('📦 المخزن', style: AppTextStyles.xxxlBold(AppColors.gray800)),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilterPill(
+                    label: 'الكل (${allItems.length})',
+                    isSelected: _filter == 'all',
+                    size: FilterPillSize.medium,
+                    onTap: () => setState(() => _filter = 'all'),
                   ),
-                ),
-                Text('${item.currency} ${item.price.toStringAsFixed(2)}'),
-              ],
-            ),
-            SizedBox(height: 8.h),
-            Row(
-              children: [
-                Icon(Icons.inventory_2_outlined, color: statusColor),
-                SizedBox(width: 8.w),
-                Text(
-                  'الكمية: ${item.quantity}',
-                  style: TextStyle(color: statusColor),
-                ),
-                const Spacer(),
-                Text(statusText, style: TextStyle(color: statusColor)),
-              ],
-            ),
-            if (item.stockStatus != 'not_tracked') ...[
-              SizedBox(height: 4.h),
-              Text('حد التنبيه: ${item.lowStockThreshold}'),
+                  FilterPill(
+                    label: '📊 مُتتبَّع ($trackedCount)',
+                    isSelected: _filter == 'tracked',
+                    size: FilterPillSize.medium,
+                    onTap: () => setState(() => _filter = 'tracked'),
+                  ),
+                  FilterPill(
+                    label: '⚠️ منخفض ($lowStockCount)',
+                    isSelected: _filter == 'low_stock',
+                    size: FilterPillSize.medium,
+                    onTap: () => setState(() => _filter = 'low_stock'),
+                  ),
+                  FilterPill(
+                    label: '🚫 نفد ($outOfStockCount)',
+                    isSelected: _filter == 'out_of_stock',
+                    size: FilterPillSize.medium,
+                    onTap: () => setState(() => _filter = 'out_of_stock'),
+                  ),
+                  FilterPill(
+                    label: '⏸️ غير مُتتبَّع ($notTrackedCount)',
+                    isSelected: _filter == 'not_tracked',
+                    size: FilterPillSize.medium,
+                    onTap: () => setState(() => _filter = 'not_tracked'),
+                  ),
+                ],
+              ),
             ],
-            OverflowBar(
-              children: [
-                TextButton.icon(
-                  onPressed: () => _showMovements(context, controller),
-                  icon: const Icon(Icons.history_rounded),
-                  label: const Text('الحركات'),
+          )
+        else
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('📦 المخزن', style: AppTextStyles.xxxlBold(AppColors.gray800)),
+              Wrap(
+                spacing: 8,
+                children: [
+                  FilterPill(
+                    label: 'الكل (${allItems.length})',
+                    isSelected: _filter == 'all',
+                    size: FilterPillSize.medium,
+                    onTap: () => setState(() => _filter = 'all'),
+                  ),
+                  FilterPill(
+                    label: '📊 مُتتبَّع ($trackedCount)',
+                    isSelected: _filter == 'tracked',
+                    size: FilterPillSize.medium,
+                    onTap: () => setState(() => _filter = 'tracked'),
+                  ),
+                  FilterPill(
+                    label: '⚠️ منخفض ($lowStockCount)',
+                    isSelected: _filter == 'low_stock',
+                    size: FilterPillSize.medium,
+                    onTap: () => setState(() => _filter = 'low_stock'),
+                  ),
+                  FilterPill(
+                    label: '🚫 نفد ($outOfStockCount)',
+                    isSelected: _filter == 'out_of_stock',
+                    size: FilterPillSize.medium,
+                    onTap: () => setState(() => _filter = 'out_of_stock'),
+                  ),
+                  FilterPill(
+                    label: '⏸️ غير مُتتبَّع ($notTrackedCount)',
+                    isSelected: _filter == 'not_tracked',
+                    size: FilterPillSize.medium,
+                    onTap: () => setState(() => _filter = 'not_tracked'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        const SizedBox(height: 24),
+
+        // Info Banner
+        InfoBanner(
+          backgroundColor: AppColors.blue50,
+          borderColor: AppColors.blue400,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('ℹ️', style: TextStyle(fontSize: 24)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('المخزن اختياري:', style: AppTextStyles.smBold(AppColors.gray700)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'المواد التي تُفعّل تتبع المخزن لها سيتم خصم الكمية تلقائياً عند البيع.',
+                      style: AppTextStyles.sm(AppColors.gray700),
+                    ),
+                    Text(
+                      'المواد غير المُتتبَّعة تُباع بدون أي تأثير على المخزن.',
+                      style: AppTextStyles.sm(AppColors.gray700),
+                    ),
+                  ],
                 ),
-                TextButton.icon(
-                  onPressed: () => _showEditor(context, controller),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('تعديل'),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+        const SizedBox(height: 16),
 
-  Future<void> _showEditor(
-    BuildContext context,
-    InventoryController controller,
-  ) async {
-    final result = await showDialog<_InventoryEdit>(
-      context: context,
-      builder: (_) => _InventoryEditDialog(item: item),
-    );
-    if (!context.mounted || result == null) return;
-    final saved = await controller.save(
-      productId: item.productId,
-      quantity: result.quantity,
-      action: result.action,
-      lowStockThreshold: result.threshold,
-      notes: result.notes,
-    );
-    if (!context.mounted || saved || controller.errorMessage == null) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(controller.errorMessage!)));
-  }
-
-  Future<void> _showMovements(
-    BuildContext context,
-    InventoryController controller,
-  ) async {
-    final movements = await controller.movements(item.productId);
-    if (!context.mounted) return;
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => _MovementsSheet(movements: movements),
-    );
-  }
-}
-
-class _InventoryEdit {
-  const _InventoryEdit({
-    required this.quantity,
-    required this.action,
-    required this.threshold,
-    this.notes,
-  });
-  final int quantity;
-  final String action;
-  final int threshold;
-  final String? notes;
-}
-
-class _InventoryEditDialog extends StatefulWidget {
-  const _InventoryEditDialog({required this.item});
-  final InventoryItem item;
-
-  @override
-  State<_InventoryEditDialog> createState() => _InventoryEditDialogState();
-}
-
-class _InventoryEditDialogState extends State<_InventoryEditDialog> {
-  late final TextEditingController _quantity;
-  late final TextEditingController _threshold;
-  late final TextEditingController _notes;
-  String _action = 'set';
-
-  @override
-  void initState() {
-    super.initState();
-    _quantity = TextEditingController(text: widget.item.quantity.toString());
-    _threshold = TextEditingController(
-      text: widget.item.lowStockThreshold.toString(),
-    );
-    _notes = TextEditingController(text: widget.item.notes);
-  }
-
-  @override
-  void dispose() {
-    _quantity.dispose();
-    _threshold.dispose();
-    _notes.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(
-      widget.item.stockStatus == 'not_tracked'
-          ? 'تفعيل تتبع المخزون'
-          : 'تعديل المخزون',
-    ),
-    content: SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _quantity,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'الكمية'),
+        // Search Card
+        AppCard(
+          padding: const EdgeInsets.all(AppDimens.p4),
+          child: AppTextField(
+            controller: _searchController,
+            hintText: '🔍 بحث في المواد...',
+            onChanged: (val) => setState(() => _search = val),
           ),
-          DropdownButtonFormField<String>(
-            initialValue: _action,
-            decoration: const InputDecoration(labelText: 'طريقة التعديل'),
-            items: const [
-              DropdownMenuItem(value: 'set', child: Text('تحديد الكمية')),
-              DropdownMenuItem(value: 'add', child: Text('إضافة إلى الكمية')),
-            ],
-            onChanged: (value) => setState(() => _action = value ?? 'set'),
-          ),
-          TextField(
-            controller: _threshold,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'حد المخزون المنخفض'),
-          ),
-          TextField(
-            controller: _notes,
-            maxLines: 2,
-            decoration: const InputDecoration(labelText: 'ملاحظات'),
-          ),
-        ],
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('إلغاء'),
-      ),
-      FilledButton(
-        onPressed: () {
-          final quantity = int.tryParse(_quantity.text);
-          final threshold = int.tryParse(_threshold.text);
-          if (quantity == null ||
-              threshold == null ||
-              quantity < 0 ||
-              threshold < 0) {
-            return;
-          }
-          Navigator.pop(
-            context,
-            _InventoryEdit(
-              quantity: quantity,
-              action: _action,
-              threshold: threshold,
-              notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-            ),
-          );
-        },
-        child: const Text('حفظ'),
-      ),
-    ],
-  );
-}
+        ),
+        const SizedBox(height: 16),
 
-class _MovementsSheet extends StatelessWidget {
-  const _MovementsSheet({required this.movements});
-  final List<InventoryMovement> movements;
+        // Table Card
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: controller.state.isLoading && allItems.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32),
+                  child: Center(child: AppSpinner(size: 32)),
+                )
+              : filtered.isEmpty
+                  ? const EmptyView(message: 'لا توجد نتائج', inCard: false)
+                  : AppTable(
+                      minWidth: 700,
+                      columns: const [
+                        AppTableColumn(title: '#', width: 48),
+                        AppTableColumn(title: 'المادة'),
+                        AppTableColumn(title: 'السعر'),
+                        AppTableColumn(title: 'الكمية'),
+                        AppTableColumn(title: 'حد التنبيه'),
+                        AppTableColumn(title: 'الحالة'),
+                        AppTableColumn(title: 'الإجراءات', width: 110),
+                      ],
+                      rows: List.generate(filtered.length, (i) {
+                        final item = filtered[i];
+                        final isNotTracked = item.stockStatus == 'not_tracked';
+                        final isOutOfStock = item.stockStatus == 'out_of_stock';
+                        final isLowStock = item.stockStatus == 'low_stock';
 
-  @override
-  Widget build(BuildContext context) {
-    if (movements.isEmpty) {
-      return const SafeArea(child: Center(child: Text('لا توجد حركات.')));
-    }
-    return SafeArea(
-      child: ListView.builder(
-        shrinkWrap: true,
-        itemCount: movements.length,
-        itemBuilder: (_, index) {
-          final movement = movements[index];
-          return ListTile(
-            leading: const Icon(Icons.swap_vert_rounded),
-            title: Text('${movement.type}: ${movement.quantity}'),
-            subtitle: Text(movement.createdAt),
-          );
-        },
+                        Color? rowBg;
+                        if (isOutOfStock) rowBg = AppColors.red50;
+                        if (isLowStock) rowBg = AppColors.amber50;
+
+                        Color qtyColor = AppColors.green700;
+                        if (item.quantity <= 0) {
+                          qtyColor = AppColors.red700;
+                        } else if (item.quantity <= item.lowStockThreshold) {
+                          qtyColor = AppColors.amber700;
+                        }
+
+                        final statusInfo = AppColors.getStockStatus(item.stockStatus);
+
+                        return AppTableRow(
+                          backgroundColor: rowBg,
+                          cells: [
+                            AppTableCell(
+                              child: Text('${i + 1}', style: AppTextStyles.sm(AppColors.gray600)),
+                              width: 48,
+                            ),
+                            AppTableCell(
+                              child: Text(
+                                item.productName,
+                                style: AppTextStyles.baseMedium(AppColors.gray800),
+                              ),
+                            ),
+                            AppTableCell(
+                              child: Text(
+                                '${MoneyFormatter.formatAmount(item.price)} ${item.currency == 'USD' ? '\$' : MoneyFormatter.currencySymbol('LOCAL', settings.currencySymbol)}',
+                                style: AppTextStyles.base(AppColors.green700),
+                              ),
+                            ),
+                            AppTableCell(
+                              child: isNotTracked
+                                  ? Text(
+                                      'غير مُتتبَّع',
+                                      style: AppTextStyles.sm(AppColors.gray400).copyWith(
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    )
+                                  : Text(
+                                      '${item.quantity}',
+                                      style: AppTextStyles.lgBold(qtyColor),
+                                    ),
+                            ),
+                            AppTableCell(
+                              child: Text(
+                                isNotTracked ? '-' : '${item.lowStockThreshold}',
+                                style: AppTextStyles.base(AppColors.gray600),
+                              ),
+                            ),
+                            AppTableCell(
+                              child: AppBadge(
+                                text: statusInfo.fullText,
+                                customBg: statusInfo.badgeBg,
+                                customFg: statusInfo.badgeText,
+                              ),
+                            ),
+                            AppTableCell(
+                              width: 110,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // ➕ button
+                                  _tableActionButton(
+                                    label: '➕',
+                                    bg: AppColors.green600,
+                                    onTap: () => _openStockModal(item),
+                                  ),
+                                  if (!isNotTracked) ...[
+                                    const SizedBox(width: 4),
+                                    // 📋 button
+                                    _tableActionButton(
+                                      label: '📋',
+                                      bg: AppColors.blue500,
+                                      onTap: () => _viewMovements(item),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    // ⏹️ button
+                                    _tableActionButton(
+                                      label: '⏹️',
+                                      bg: AppColors.red500,
+                                      onTap: () => _stopTracking(item),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                    ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tableActionButton({
+    required String label,
+    required Color bg,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: bg,
+      borderRadius: AppDimens.borderSm,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppDimens.borderSm,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: AppColors.white),
+          ),
+        ),
       ),
     );
   }

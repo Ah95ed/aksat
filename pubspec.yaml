@@ -1,5 +1,5 @@
 name: aksat
-description: "نظام إدارة الأPTSات والبيع بالتقسيط - تطبيق Flutter كلي."
+description: "نظام إدارة الأقساط والبيع بالتقسيط - تطبيق Flutter كلي."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -18,16 +18,18 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.3
-  fl_chart: ^1.2.0
   url_launcher: ^6.3.1
+  pdf: ^3.11.1
+  printing: ^5.13.3
+  flutter_svg: ^2.0.17
 
 flutter:
   uses-material-design: true
   generate: true
   assets:
     - assets/fonts/
-    - assets/images/iconapp.jpg
-    
+    - assets/images/
+    - assets/icons/
 
   fonts:
     - family: Cairo

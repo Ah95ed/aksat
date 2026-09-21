@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 
@@ -6,7 +6,7 @@ import 'api_exceptions.dart';
 
 /// Applies the response rules in ONE place so every data source benefits.
 ///
-/// Rules (from API docs):
+/// Rules (from Section 10.1):
 ///   401  -> SessionExpired
 ///   403  -> SubscriptionStopped (with code + whatsapp if present)
 ///   429  -> RateLimited(retry_after_seconds)
@@ -18,17 +18,16 @@ import 'api_exceptions.dart';
 class ApiResponseHandler {
   ApiResponseHandler._();
 
+  static const String networkErrorMessage = 'تعذر الاتصال بالخادم، تأكد من اتصالك بالإنترنت.';
+
   /// Returns the decoded body map on success, otherwise throws.
-  /// [body] may be null when the server returns an empty/invalid response.
   static Map<String, dynamic> handle(
     int? statusCode,
     dynamic body, [
     String? fallbackMessage,
   ]) {
-    if (statusCode == null) throw const NetworkError('No response');
+    if (statusCode == null) throw const NetworkError(networkErrorMessage);
 
-    // Transport-level failures (no body at all) are treated as network errors
-    // for 5xx, but 4xx with a JSON body still goes through the success check.
     if (body is! Map<String, dynamic>) {
       if (statusCode >= 500) {
         throw ApiError(fallbackMessage ?? 'حدث خطأ في الخادم');
@@ -69,27 +68,25 @@ class ApiResponseHandler {
   }
 }
 
-/// Maps Dio exceptions to our domain exceptions.
+/// Maps Dio exceptions to domain exceptions.
 Exception mapDioException(DioException e) {
   switch (e.type) {
     case DioExceptionType.connectionTimeout:
     case DioExceptionType.sendTimeout:
     case DioExceptionType.receiveTimeout:
-      return const NetworkError('انتهت مهلة الاتصال');
     case DioExceptionType.connectionError:
     case DioExceptionType.badCertificate:
-      return NetworkError(e.error?.toString() ?? 'اضطراب في الاتصال');
+      return const NetworkError(ApiResponseHandler.networkErrorMessage);
     case DioExceptionType.badResponse:
-      // A bad response still carries a status code and possibly a body.
       final code = e.response?.statusCode;
       final body = e.response?.data;
       return _mapBadResponse(code, body);
     case DioExceptionType.unknown:
     default:
       if (e.error is SocketException) {
-        return const NetworkError('لا توجد اتصال إلى الإنترنت');
+        return const NetworkError(ApiResponseHandler.networkErrorMessage);
       }
-      return NetworkError(e.message ?? 'حدث خطأ في الاتصال');
+      return NetworkError(e.message ?? ApiResponseHandler.networkErrorMessage);
   }
 }
 

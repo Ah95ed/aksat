@@ -1,269 +1,341 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimens.dart';
+import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/app_spinner.dart';
+import '../../../../core/widgets/empty_view.dart';
 import '../../../../core/state/view_state.dart';
-import '../../domain/entities/customer.dart';
 import '../controllers/customers_controller.dart';
 
 class CustomersPage extends StatefulWidget {
-  const CustomersPage({super.key});
+  const CustomersPage({
+    super.key,
+    this.onSelectCustomer,
+  });
+
+  final ValueChanged<String>? onSelectCustomer;
 
   @override
   State<CustomersPage> createState() => _CustomersPageState();
 }
 
 class _CustomersPageState extends State<CustomersPage> {
-  final _search = TextEditingController();
+  final _searchController = TextEditingController();
+  String _search = '';
+  String _filter = 'all'; // 'all', 'active', 'late'
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => context.read<CustomersController>().load(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CustomersController>().load();
+    });
   }
 
   @override
   void dispose() {
-    _search.dispose();
+    _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _form([Customer? customer]) async {
-    final value = await showDialog<Customer>(
-      context: context,
-      builder: (_) => CustomerFormDialog(customer: customer),
-    );
-    if (!mounted || value == null) return;
-    final controller = context.read<CustomersController>();
-    if (!await controller.save(value) && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(controller.errorMessage ?? 'تعذر الحفظ.')),
-      );
-    }
-  }
-
-  Future<void> _remove(Customer customer) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('حذف المشتري'),
-        content: Text(
-          'سيتم حذف مبيعات وأقساط «${customer.name}» أيضاً. هل تريد المتابعة؟',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف نهائياً'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || confirmed != true) return;
-    final controller = context.read<CustomersController>();
-    if (!await controller.remove(customer.id) && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(controller.errorMessage ?? 'تعذر الحذف.')),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<CustomersController>();
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(title: const Text('المشترون')),
-        body: Column(
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 4.h),
-              child: TextField(
-                controller: _search,
-                onChanged: controller.search,
-                decoration: const InputDecoration(
-                  hintText: 'بحث بالاسم أو الهاتف',
-                  prefixIcon: Icon(Icons.search_rounded),
-                ),
-              ),
+    final allCustomers = controller.customers;
+
+    final lateCount = allCustomers.where((c) => c.lateCount > 0).length;
+    final activeCount = allCustomers.where((c) => c.activeSales > 0).length;
+
+    // Filter
+    final q = _search.toLowerCase();
+    final filtered = allCustomers.where((c) {
+      if (_filter == 'late' && c.lateCount <= 0) return false;
+      if (_filter == 'active' && c.activeSales <= 0) return false;
+      if (q.isNotEmpty) {
+        final matchesName = c.name.toLowerCase().contains(q);
+        final matchesPhone = c.phone.contains(q);
+        if (!matchesName && !matchesPhone) return false;
+      }
+      return true;
+    }).toList();
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header
+          Text(
+            '👥 المشترين',
+            style: AppTextStyles.xxxlBold(AppColors.gray800),
+          ),
+          const SizedBox(height: 24),
+
+          // Search and Filter Card
+          AppCard(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 600;
+                final searchField = TextField(
+                  controller: _searchController,
+                  onChanged: (v) => setState(() => _search = v.trim()),
+                  style: AppTextStyles.base(AppColors.gray800),
+                  decoration: InputDecoration(
+                    hintText: '🔍 بحث بالاسم أو رقم الهاتف...',
+                    hintStyle: AppTextStyles.base(AppColors.gray400),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    filled: true,
+                    fillColor: AppColors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: AppDimens.borderMd,
+                      borderSide: const BorderSide(color: AppColors.gray300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: AppDimens.borderMd,
+                      borderSide: const BorderSide(color: AppColors.gray300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: AppDimens.borderMd,
+                      borderSide: const BorderSide(color: AppColors.blue600, width: 2),
+                    ),
+                  ),
+                );
+
+                final filterDropdown = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: AppDimens.borderMd,
+                    border: Border.all(color: AppColors.gray300),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _filter,
+                      isExpanded: true,
+                      items: [
+                        DropdownMenuItem(
+                          value: 'all',
+                          child: Text('الكل (${allCustomers.length})'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'active',
+                          child: Text('نشط ($activeCount)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'late',
+                          child: Text('عنده متأخرات ($lateCount)'),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => _filter = val);
+                      },
+                    ),
+                  ),
+                );
+
+                if (isWide) {
+                  return Row(
+                    children: [
+                      Expanded(flex: 2, child: searchField),
+                      const SizedBox(width: 16),
+                      Expanded(flex: 1, child: filterDropdown),
+                    ],
+                  );
+                }
+
+                return Column(
+                  children: [
+                    searchField,
+                    const SizedBox(height: 12),
+                    filterDropdown,
+                  ],
+                );
+              },
             ),
-            Expanded(
-              child: _CustomerList(
-                controller: controller,
-                onEdit: _form,
-                onDelete: _remove,
+          ),
+          const SizedBox(height: 16),
+
+          // Loading / Content
+          if (controller.state == ViewState.loading && allCustomers.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: Center(child: AppSpinner(size: 40)),
+            )
+          else if (filtered.isEmpty)
+            AppCard(
+              child: EmptyView(
+                message: _search.isNotEmpty ? 'لا توجد نتائج' : 'لا يوجد مشترين بعد',
+                inCard: false,
               ),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final crossAxisCount = width >= 1024
+                    ? 3
+                    : width >= 640
+                        ? 2
+                        : 1;
+
+                // Simple grid using Wrap or Row/Column chunks
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    mainAxisExtent: 170,
+                  ),
+                  itemCount: filtered.length,
+                  itemBuilder: (ctx, i) {
+                    final c = filtered[i];
+                    final hasLate = c.lateCount > 0;
+
+                    return InkWell(
+                      onTap: () {
+                        if (widget.onSelectCustomer != null) {
+                          widget.onSelectCustomer!(c.id);
+                        }
+                      },
+                      borderRadius: AppDimens.borderLg,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: AppDimens.borderLg,
+                          border: Border.all(
+                            color: hasLate ? AppColors.red300 : AppColors.gray200,
+                            width: hasLate ? 2 : 1,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x0A000000),
+                              blurRadius: 4,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Top row: Avatar + Info
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 48,
+                                      height: 48,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.blue100,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Text('👤', style: TextStyle(fontSize: 24)),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            c.name,
+                                            style: AppTextStyles.lgBold(AppColors.gray800),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '📞 ${c.phone}',
+                                            style: AppTextStyles.sm(AppColors.gray500),
+                                            textDirection: TextDirection.ltr,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+
+                                // 2 stats tiles
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.blue50,
+                                          borderRadius: AppDimens.borderMd,
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              '${c.salesCount}',
+                                              style: AppTextStyles.baseBold(AppColors.blue700),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'إجمالي البيوع',
+                                              style: AppTextStyles.xs(AppColors.gray600),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.green50,
+                                          borderRadius: AppDimens.borderMd,
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              '${c.activeSales}',
+                                              style: AppTextStyles.baseBold(AppColors.green700),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'نشط',
+                                              style: AppTextStyles.xs(AppColors.gray600),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+
+                            // Late badge at top-left (physical left)
+                            if (hasLate)
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                child: AppBadge(
+                                  label: '⚠️ ${c.lateCount} متأخر',
+                                  variant: AppBadgeVariant.danger,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => _form(),
-          icon: const Icon(Icons.person_add_alt_rounded),
-          label: const Text('مشتري جديد'),
-        ),
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }
-}
-
-class _CustomerList extends StatelessWidget {
-  const _CustomerList({
-    required this.controller,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final CustomersController controller;
-  final ValueChanged<Customer> onEdit;
-  final ValueChanged<Customer> onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    if (controller.state.isLoading && controller.customers.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (controller.state.isError && controller.customers.isEmpty) {
-      return Center(
-        child: TextButton.icon(
-          onPressed: controller.load,
-          icon: const Icon(Icons.refresh),
-          label: Text(controller.errorMessage ?? 'إعادة المحاولة'),
-        ),
-      );
-    }
-    if (controller.customers.isEmpty) {
-      return const Center(child: Text('لا يوجد مشترون بعد.'));
-    }
-    return RefreshIndicator(
-      onRefresh: controller.load,
-      child: ListView.separated(
-        padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 96.h),
-        itemCount: controller.customers.length,
-        separatorBuilder: (_, _) => SizedBox(height: 8.h),
-        itemBuilder: (_, index) {
-          final customer = controller.customers[index];
-          return Card(
-            child: ListTile(
-              leading: CircleAvatar(
-                child: Text(customer.name.characters.first),
-              ),
-              title: Text(customer.name),
-              subtitle: Text(
-                '${customer.phone}\nمبيعات: ${customer.salesCount}  |  متأخرة: ${customer.lateCount}',
-              ),
-              isThreeLine: true,
-              trailing: PopupMenuButton<String>(
-                onSelected: (value) =>
-                    value == 'edit' ? onEdit(customer) : onDelete(customer),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('تعديل')),
-                  PopupMenuItem(value: 'delete', child: Text('حذف')),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class CustomerFormDialog extends StatefulWidget {
-  const CustomerFormDialog({super.key, this.customer});
-  final Customer? customer;
-
-  @override
-  State<CustomerFormDialog> createState() => _CustomerFormDialogState();
-}
-
-class _CustomerFormDialogState extends State<CustomerFormDialog> {
-  final _key = GlobalKey<FormState>();
-  late final TextEditingController _name;
-  late final TextEditingController _phone;
-  late final TextEditingController _address;
-  late final TextEditingController _notes;
-
-  @override
-  void initState() {
-    super.initState();
-    final customer = widget.customer;
-    _name = TextEditingController(text: customer?.name);
-    _phone = TextEditingController(text: customer?.phone);
-    _address = TextEditingController(text: customer?.address);
-    _notes = TextEditingController(text: customer?.notes);
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _phone.dispose();
-    _address.dispose();
-    _notes.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.customer == null ? 'إضافة مشترٍ' : 'تعديل مشترٍ'),
-    content: Form(
-      key: _key,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _name,
-              decoration: const InputDecoration(labelText: 'الاسم'),
-              validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'اكتب الاسم.' : null,
-            ),
-            TextFormField(
-              controller: _phone,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'الهاتف'),
-              validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'اكتب الهاتف.' : null,
-            ),
-            TextFormField(
-              controller: _address,
-              decoration: const InputDecoration(labelText: 'العنوان'),
-            ),
-            TextFormField(
-              controller: _notes,
-              decoration: const InputDecoration(labelText: 'ملاحظات'),
-              maxLines: 2,
-            ),
-          ],
-        ),
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('إلغاء'),
-      ),
-      FilledButton(
-        onPressed: () {
-          if (!_key.currentState!.validate()) return;
-          Navigator.pop(
-            context,
-            Customer(
-              id: widget.customer?.id ?? '',
-              name: _name.text.trim(),
-              phone: _phone.text.trim(),
-              address: _address.text.trim(),
-              notes: _notes.text.trim(),
-            ),
-          );
-        },
-        child: const Text('حفظ'),
-      ),
-    ],
-  );
 }

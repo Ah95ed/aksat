@@ -1,0 +1,11 @@
+Options -Indexes
+
+<FilesMatch "^(config\.php|config\.local\.php|auth\.php|.*\.env.*|.*\.sql|.*\.log)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP:Authorization} ^(.*)
+    RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+</IfModule>

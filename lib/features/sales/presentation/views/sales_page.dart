@@ -3,11 +3,17 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/state/view_state.dart';
+import '../../../customers/domain/entities/customer.dart';
+import '../../../customers/domain/repositories/customers_repository.dart';
+import '../../../products/domain/entities/product.dart';
+import '../../../products/domain/repositories/products_repository.dart';
 import '../../domain/entities/sale.dart';
 import '../controllers/sales_controller.dart';
 
 class SalesPage extends StatefulWidget {
-  const SalesPage({super.key});
+  const SalesPage({super.key, this.openCreate = false});
+
+  final bool openCreate;
 
   @override
   State<SalesPage> createState() => _SalesPageState();
@@ -17,9 +23,10 @@ class _SalesPageState extends State<SalesPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => context.read<SalesController>().load(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SalesController>().load();
+      if (widget.openCreate) _create();
+    });
   }
 
   Future<void> _create() async {
@@ -145,12 +152,90 @@ class _SaleFormDialogState extends State<_SaleFormDialog> {
   final _customerId = TextEditingController();
   final _productId = TextEditingController();
   final _productName = TextEditingController();
+  final _customerSearch = TextEditingController();
   final _total = TextEditingController();
   final _down = TextEditingController(text: '0');
   final _count = TextEditingController(text: '1');
   final _quantity = TextEditingController(text: '1');
+  List<Product> _products = const [];
+  List<Customer> _suggestions = const [];
+  Product? _selectedProduct;
+  Customer? _selectedCustomer;
+  bool _loadingProducts = true;
+  bool _searchingCustomers = false;
+  String? _loadError;
+  DateTime? _lastSearch;
   String _currency = 'USD';
   String _type = 'monthly';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadProducts());
+  }
+
+  Future<void> _loadProducts() async {
+    try {
+      final products = await context.read<ProductsRepository>().fetchAll();
+      if (!mounted) return;
+      setState(() {
+        _products = products;
+        _loadingProducts = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingProducts = false;
+        _loadError = 'تعذر تحميل المواد.';
+      });
+    }
+  }
+
+  Future<void> _searchCustomers(String value) async {
+    final query = value.trim();
+    _selectedCustomer = null;
+    if (query.length < 2) {
+      setState(() => _suggestions = const []);
+      return;
+    }
+    final stamp = DateTime.now();
+    _lastSearch = stamp;
+    setState(() => _searchingCustomers = true);
+    try {
+      final customers = await context.read<CustomersRepository>().fetchAll(
+        search: query,
+      );
+      if (!mounted || _lastSearch != stamp) return;
+      setState(() {
+        _suggestions = customers;
+        _searchingCustomers = false;
+      });
+    } catch (_) {
+      if (mounted && _lastSearch == stamp) {
+        setState(() => _searchingCustomers = false);
+      }
+    }
+  }
+
+  void _selectProduct(Product? product) {
+    if (product == null) return;
+    setState(() {
+      _selectedProduct = product;
+      _productId.text = product.id;
+      _productName.text = product.name;
+      _total.text = product.price.toString();
+      _currency = product.currency;
+    });
+  }
+
+  void _selectCustomer(Customer customer) {
+    setState(() {
+      _selectedCustomer = customer;
+      _customerId.text = customer.id;
+      _customerSearch.text = customer.name;
+      _suggestions = const [];
+    });
+  }
 
   @override
   void dispose() {
@@ -162,6 +247,7 @@ class _SaleFormDialogState extends State<_SaleFormDialog> {
       _down,
       _count,
       _quantity,
+      _customerSearch,
     ]) {
       field.dispose();
     }
@@ -184,9 +270,71 @@ class _SaleFormDialogState extends State<_SaleFormDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _field(_customerId, 'معرف المشتري'),
-            _field(_productId, 'معرف المادة'),
-            _field(_productName, 'اسم المادة'),
+            if (_loadError != null)
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  _loadError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            TextFormField(
+              controller: _customerSearch,
+              decoration: InputDecoration(
+                labelText: 'اسم المشتري',
+                hintText: 'اكتب حرفين على الأقل للبحث',
+                suffixIcon: _searchingCustomers
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.search_rounded),
+              ),
+              onChanged: _searchCustomers,
+              validator: (_) => _selectedCustomer == null
+                  ? 'اختر مشترياً من نتائج البحث.'
+                  : null,
+            ),
+            if (_suggestions.isNotEmpty)
+              Card(
+                margin: EdgeInsets.zero,
+                child: Column(
+                  children: _suggestions
+                      .take(5)
+                      .map(
+                        (customer) => ListTile(
+                          dense: true,
+                          title: Text(customer.name),
+                          subtitle: Text(customer.phone),
+                          onTap: () => _selectCustomer(customer),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            SizedBox(height: 8.h),
+            DropdownButtonFormField<Product>(
+              initialValue: _selectedProduct,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'اختر المادة'),
+              items: _products
+                  .map(
+                    (product) => DropdownMenuItem(
+                      value: product,
+                      child: Text(
+                        '${product.name} - ${product.price.toStringAsFixed(2)} ${product.currency}',
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _loadingProducts ? null : _selectProduct,
+              validator: (_) => _selectedProduct == null ? 'اختر مادة.' : null,
+            ),
+            if (_loadingProducts)
+              const Padding(
+                padding: EdgeInsets.all(8),
+                child: LinearProgressIndicator(),
+              ),
             _field(_total, 'السعر الكلي', number: true),
             _field(_down, 'الدفعة المقدمة', number: true),
             _field(_count, 'عدد الأقساط', number: true),
