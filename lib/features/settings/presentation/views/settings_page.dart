@@ -92,6 +92,14 @@ class _SettingsPageState extends State<SettingsPage> {
     _fill(controller.settings);
     final theme = context.watch<ThemeController>();
     final locale = context.watch<LocaleController>();
+    final isArabic = locale.locale.languageCode == 'ar';
+    final isDark = theme.isDark;
+
+    final titleColor = isDark ? AppColors.white : AppColors.gray800;
+    final primaryTextColor = isDark ? AppColors.gray100 : AppColors.gray800;
+    final secondaryTextColor = isDark ? AppColors.gray400 : AppColors.gray500;
+    final cardHeaderColor = isDark ? AppColors.blue400 : AppColors.blue700;
+    final dividerColor = isDark ? const Color(0xFF334155) : AppColors.gray200;
 
     if (controller.state == ViewState.loading && !_initialized) {
       return const Padding(
@@ -109,8 +117,8 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               // Header
               Text(
-                '⚙️ الإعدادات',
-                style: AppTextStyles.xxxlBold(AppColors.gray800),
+                isArabic ? '⚙️ الإعدادات' : '⚙️ Settings',
+                style: AppTextStyles.xxxlBold(titleColor),
               ),
               const SizedBox(height: 24),
 
@@ -120,15 +128,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '🏪 معلومات المتجر',
-                      style: AppTextStyles.xlBold(AppColors.blue700),
+                      isArabic ? '🏪 معلومات المتجر' : '🏪 Store Information',
+                      style: AppTextStyles.xlBold(cardHeaderColor),
                     ),
                     const SizedBox(height: 12),
-                    const Divider(height: 1, color: AppColors.gray200),
+                    Divider(height: 1, color: dividerColor),
                     const SizedBox(height: 16),
                     AppTextField(
                       controller: _storeName,
-                      label: 'اسم المتجر',
+                      label: isArabic ? 'اسم المتجر' : 'Store Name',
                     ),
                   ],
                 ),
@@ -248,28 +256,37 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // Card 4: System info
               AppCard(
-                color: AppColors.gray50,
+                color: isDark ? const Color(0xFF1E293B) : AppColors.gray50,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'ℹ️ معلومات النظام',
-                      style: AppTextStyles.xlBold(AppColors.gray700),
+                      isArabic ? 'ℹ️ معلومات النظام' : 'ℹ️ System Information',
+                      style: AppTextStyles.xlBold(cardHeaderColor),
                     ),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('إصدار النظام:', style: AppTextStyles.base(AppColors.gray600)),
-                        Text(AppConfig.appVersion, style: AppTextStyles.baseBold(AppColors.gray800)),
+                        Text(
+                          isArabic ? 'إصدار النظام:' : 'System Version:',
+                          style: AppTextStyles.base(secondaryTextColor),
+                        ),
+                        Text(AppConfig.appVersion, style: AppTextStyles.baseBold(primaryTextColor)),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text('حالة قاعدة البيانات:', style: TextStyle(color: Color(0xFF4B5563))),
-                        AppBadge(label: 'متصلة', variant: AppBadgeVariant.success),
+                      children: [
+                        Text(
+                          isArabic ? 'حالة قاعدة البيانات:' : 'Database Status:',
+                          style: AppTextStyles.base(secondaryTextColor),
+                        ),
+                        AppBadge(
+                          label: isArabic ? 'متصلة' : 'Connected',
+                          variant: AppBadgeVariant.success,
+                        ),
                       ],
                     ),
                   ],
@@ -283,11 +300,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '🎨 المظهر واللغة',
-                      style: AppTextStyles.xlBold(AppColors.blue700),
+                      isArabic ? '🎨 المظهر واللغة' : '🎨 Appearance & Language',
+                      style: AppTextStyles.xlBold(cardHeaderColor),
                     ),
                     const SizedBox(height: 12),
-                    const Divider(height: 1, color: AppColors.gray200),
+                    Divider(height: 1, color: dividerColor),
                     const SizedBox(height: 16),
 
                     Row(
@@ -296,8 +313,14 @@ class _SettingsPageState extends State<SettingsPage> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('الوضع الداكن', style: AppTextStyles.baseMedium(AppColors.gray800)),
-                            Text('تفعيل النمط الليلي للتطبيق', style: AppTextStyles.xs(AppColors.gray500)),
+                            Text(
+                              isArabic ? 'الوضع الداكن' : 'Dark Mode',
+                              style: AppTextStyles.baseMedium(primaryTextColor),
+                            ),
+                            Text(
+                              isArabic ? 'تفعيل النمط الليلي للتطبيق' : 'Enable dark theme',
+                              style: AppTextStyles.xs(secondaryTextColor),
+                            ),
                           ],
                         ),
                         Switch(
@@ -314,12 +337,20 @@ class _SettingsPageState extends State<SettingsPage> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('اللغة', style: AppTextStyles.baseMedium(AppColors.gray800)),
-                            Text('العربية / English', style: AppTextStyles.xs(AppColors.gray500)),
+                            Text(
+                              isArabic ? 'اللغة' : 'Language',
+                              style: AppTextStyles.baseMedium(primaryTextColor),
+                            ),
+                            Text(
+                              'العربية / English',
+                              style: AppTextStyles.xs(secondaryTextColor),
+                            ),
                           ],
                         ),
                         DropdownButton<String>(
                           value: locale.locale.languageCode,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : AppColors.white,
+                          style: AppTextStyles.base(primaryTextColor),
                           items: const [
                             DropdownMenuItem(value: 'ar', child: Text('العربية')),
                             DropdownMenuItem(value: 'en', child: Text('English')),

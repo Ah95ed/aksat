@@ -79,7 +79,14 @@ class _CustomerDetailsPageState extends State<CustomerDetailsPage> {
         : '\$';
   }
 
-  void _sendWhatsApp(CustomerDetail customer, CustomerDetailSale sale, dynamic settings) {
+  Future<void> _sendWhatsApp(CustomerDetail customer, CustomerDetailSale sale, dynamic settings) async {
+    if (customer.phone.trim().isEmpty) {
+      if (mounted) {
+        AppDialogs.alert(context, 'رقم هاتف المشتري غير متوفر.');
+      }
+      return;
+    }
+
     // Find nearest unpaid installment
     final unpaid = sale.installments.where((i) => i.status != 'paid').toList();
     final nextInst = unpaid.isNotEmpty ? unpaid.first : null;
@@ -96,9 +103,10 @@ class _CustomerDetailsPageState extends State<CustomerDetailsPage> {
         ? DateFormatter.formatDateShort(nextInst.dueDate)
         : '-';
 
-    final template = (settings.whatsappTemplate as String).isNotEmpty
-        ? settings.whatsappTemplate as String
-        : 'السلام عليكم {customer_name}،\nنذكركم بقسط {product_name}\nالمبلغ: {amount} {currency}\nتاريخ الاستحقاق: {due_date}\nشكراً لتعاملكم معنا.';
+    final tplStr = settings?.whatsappTemplate?.toString() ?? '';
+    final template = tplStr.trim().isNotEmpty
+        ? tplStr
+        : WhatsAppLauncher.defaultTemplate;
 
     final message = WhatsAppLauncher.replacePlaceholders(
       template,
@@ -109,10 +117,14 @@ class _CustomerDetailsPageState extends State<CustomerDetailsPage> {
       dueDate: dueDateStr,
     );
 
-    WhatsAppLauncher.launchWhatsApp(
+    final ok = await WhatsAppLauncher.launchWhatsApp(
       phone: customer.phone,
       message: message,
     );
+
+    if (!ok && mounted) {
+      AppDialogs.alert(context, 'تعذر فتح تطبيق واتساب. تأكد من تثبيت واتساب أو صحة الرقم.');
+    }
   }
 
   Future<void> _payInstallment(String installmentId) async {

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/l10n/app_localizations.dart';
 import 'core/network/api_client.dart';
 import 'core/network/auth_interceptor.dart';
 import 'core/responsive/adaptive_shell.dart';
@@ -96,9 +96,7 @@ class AksatApp extends StatelessWidget {
       SalesRemoteDataSource(apiClient),
     );
     final inventoryDataSource = InventoryRemoteDataSource(apiClient);
-    final inventoryRepository = InventoryRepositoryImpl(
-      inventoryDataSource,
-    );
+    final inventoryRepository = InventoryRepositoryImpl(inventoryDataSource);
     final reportsRepository = ReportsRepositoryImpl(
       ReportsRemoteDataSource(apiClient),
     );
@@ -132,12 +130,8 @@ class AksatApp extends StatelessWidget {
           darkTheme: AppTheme.darkTheme,
           themeMode: theme.mode,
           locale: locale.locale,
-          supportedLocales: const [Locale('ar'), Locale('en')],
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           home: const AuthGate(),
         ),
       ),
@@ -158,11 +152,10 @@ class AuthGate extends StatelessWidget {
       AuthStatus.authenticated => MultiProvider(
         providers: [
           ChangeNotifierProvider(
-            create: (context) =>
-                DashboardController(
-                  context.read<DashboardRepository>(),
-                  context.read<ReportsRepository>(),
-                )..load(),
+            create: (context) => DashboardController(
+              context.read<DashboardRepository>(),
+              context.read<ReportsRepository>(),
+            )..load(),
           ),
           ChangeNotifierProvider(
             create: (context) =>
@@ -173,11 +166,10 @@ class AuthGate extends StatelessWidget {
                 CustomersController(context.read<CustomersRepository>()),
           ),
           ChangeNotifierProvider(
-            create: (context) =>
-                CustomerDetailsController(
-                  customersRepository: context.read<CustomersRepository>(),
-                  installmentsRepository: context.read<InstallmentsRepository>(),
-                ),
+            create: (context) => CustomerDetailsController(
+              customersRepository: context.read<CustomersRepository>(),
+              installmentsRepository: context.read<InstallmentsRepository>(),
+            ),
           ),
           ChangeNotifierProvider(
             create: (context) =>
@@ -252,18 +244,15 @@ class _AppShellState extends State<AppShell> {
         onNavigateToProducts: () => _navigateTo('/products'),
       );
     } else if (_currentRoute == '/customers') {
-      page = CustomersPage(
-        onSelectCustomer: _navigateToCustomer,
-      );
-    } else if (_currentRoute.startsWith('/customers/') && _selectedCustomerId != null) {
+      page = CustomersPage(onSelectCustomer: _navigateToCustomer);
+    } else if (_currentRoute.startsWith('/customers/') &&
+        _selectedCustomerId != null) {
       page = CustomerDetailsPage(
         customerId: _selectedCustomerId!,
         onBack: () => _navigateTo('/customers'),
       );
     } else if (_currentRoute == '/upcoming') {
-      page = InstallmentsPage(
-        onNavigateToCustomer: _navigateToCustomer,
-      );
+      page = InstallmentsPage(onNavigateToCustomer: _navigateToCustomer);
     } else if (_currentRoute == '/reports') {
       page = const ReportsPage();
     } else if (_currentRoute == '/settings') {
@@ -275,7 +264,9 @@ class _AppShellState extends State<AppShell> {
       );
     }
 
-    final sidebarRoute = _currentRoute.startsWith('/customers/') ? '/customers' : _currentRoute;
+    final sidebarRoute = _currentRoute.startsWith('/customers/')
+        ? '/customers'
+        : _currentRoute;
 
     return AdaptiveShell(
       currentRoute: sidebarRoute,

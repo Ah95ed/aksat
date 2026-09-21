@@ -8,6 +8,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/money_formatter.dart';
 import '../../../../core/utils/parsers.dart';
 import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_spinner.dart';
 import '../../../../core/widgets/app_table.dart';
@@ -68,17 +69,18 @@ class _ReportsPageState extends State<ReportsPage> {
     final ctrl = context.watch<ReportsController>();
     final settingsCtrl = context.watch<SettingsController>();
     final settings = settingsCtrl.settings;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark ? AppColors.white : AppColors.gray800;
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header
-          Text(
-            '📊 التقارير والأرباح',
-            style: AppTextStyles.xxxlBold(AppColors.gray800),
-          ),
-          const SizedBox(height: 24),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Header
+        Text(
+          '📊 التقارير والأرباح',
+          style: AppTextStyles.xxxlBold(titleColor),
+        ),
+        const SizedBox(height: 24),
 
           // Filters Card
           AppCard(
@@ -252,6 +254,29 @@ class _ReportsPageState extends State<ReportsPage> {
               padding: EdgeInsets.symmetric(vertical: 48),
               child: Center(child: AppSpinner(size: 40)),
             )
+          else if (ctrl.state == ViewState.error && ctrl.summary == null)
+            AppCard(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Column(
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
+                    const SizedBox(height: 12),
+                    Text(
+                      ctrl.errorMessage ?? 'تعذر تحميل التقارير',
+                      style: AppTextStyles.baseMedium(AppColors.gray700),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    AppButton(
+                      text: 'إعادة المحاولة',
+                      variant: AppButtonVariant.primary,
+                      onPressed: () => ctrl.loadAll(),
+                    ),
+                  ],
+                ),
+              ),
+            )
           else ...[
             if (ctrl.activeTab == 'summary') _buildSummaryTab(ctrl, settings),
             if (ctrl.activeTab == 'by_product') _buildByProductTab(ctrl, settings),
@@ -260,8 +285,7 @@ class _ReportsPageState extends State<ReportsPage> {
           ],
           const SizedBox(height: 32),
         ],
-      ),
-    );
+      );
   }
 
   Widget _tabButton(String tabId, String icon, String label, ReportsController ctrl) {
@@ -291,8 +315,12 @@ class _ReportsPageState extends State<ReportsPage> {
       );
     }
 
-    final usdData = summary['USD'] as Map<String, dynamic>? ?? {};
-    final localData = summary['LOCAL'] as Map<String, dynamic>? ?? {};
+    final usdData = summary['USD'] is Map
+        ? Map<String, dynamic>.from((summary['USD'] as Map).map((k, v) => MapEntry(k.toString(), v)))
+        : <String, dynamic>{};
+    final localData = summary['LOCAL'] is Map
+        ? Map<String, dynamic>.from((summary['LOCAL'] as Map).map((k, v) => MapEntry(k.toString(), v)))
+        : <String, dynamic>{};
 
     final usdSales = toInt(usdData['sales_count']);
     final localSales = toInt(localData['sales_count']);

@@ -29,14 +29,28 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isLightColor = color == null ||
+        color == AppColors.white ||
+        color == AppColors.gray50 ||
+        color == AppColors.gray100;
+    final resolvedColor = gradient == null
+        ? (isDark
+            ? (isLightColor ? const Color(0xFF1E293B) : color)
+            : (color ?? AppColors.white))
+        : null;
+    final resolvedBorder = border ??
+        (isDark ? Border.all(color: const Color(0xFF334155), width: 1) : null);
+    final resolvedShadow = isDark ? null : boxShadow;
+
     Widget card = Container(
       margin: margin,
       decoration: BoxDecoration(
-        color: gradient == null ? color : null,
+        color: resolvedColor,
         gradient: gradient,
         borderRadius: borderRadius,
-        border: border,
-        boxShadow: boxShadow,
+        border: resolvedBorder,
+        boxShadow: resolvedShadow,
       ),
       child: ClipRRect(
         borderRadius: borderRadius,

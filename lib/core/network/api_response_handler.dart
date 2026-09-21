@@ -28,7 +28,7 @@ class ApiResponseHandler {
   ]) {
     if (statusCode == null) throw const NetworkError(networkErrorMessage);
 
-    if (body is! Map<String, dynamic>) {
+    if (body is! Map) {
       if (statusCode >= 500) {
         throw ApiError(fallbackMessage ?? 'حدث خطأ في الخادم');
       }
@@ -40,7 +40,9 @@ class ApiResponseHandler {
       throw ApiError(fallbackMessage ?? 'حدث خطأ غير معروف');
     }
 
-    final data = body;
+    final Map<String, dynamic> data = body is Map<String, dynamic>
+        ? body
+        : Map<String, dynamic>.from(body.map((k, v) => MapEntry(k.toString(), v)));
 
     if (statusCode == 401) throw const SessionExpired();
     if (statusCode == 403) {

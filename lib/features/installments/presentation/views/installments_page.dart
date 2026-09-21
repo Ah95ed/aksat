@@ -60,14 +60,22 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
     }
   }
 
-  void _sendWhatsApp(Installment inst, dynamic settings) {
+  Future<void> _sendWhatsApp(Installment inst, dynamic settings) async {
+    if (inst.customerPhone.trim().isEmpty) {
+      if (mounted) {
+        AppDialogs.alert(context, 'رقم هاتف المشتري غير متوفر.');
+      }
+      return;
+    }
+
     final sym = inst.currency == 'USD'
         ? '\$'
         : MoneyFormatter.currencySymbol('LOCAL', settings);
 
-    final template = (settings.whatsappTemplate as String).isNotEmpty
-        ? settings.whatsappTemplate as String
-        : 'السلام عليكم {customer_name}،\nنذكركم بقسط {product_name}\nالمبلغ: {amount} {currency}\nتاريخ الاستحقاق: {due_date}\nشكراً لتعاملكم معنا.';
+    final tplStr = settings?.whatsappTemplate?.toString() ?? '';
+    final template = tplStr.trim().isNotEmpty
+        ? tplStr
+        : WhatsAppLauncher.defaultTemplate;
 
     final message = WhatsAppLauncher.replacePlaceholders(
       template,
@@ -78,10 +86,14 @@ class _InstallmentsPageState extends State<InstallmentsPage> {
       dueDate: DateFormatter.formatDateShort(inst.dueDate),
     );
 
-    WhatsAppLauncher.launchWhatsApp(
+    final ok = await WhatsAppLauncher.launchWhatsApp(
       phone: inst.customerPhone,
       message: message,
     );
+
+    if (!ok && mounted) {
+      AppDialogs.alert(context, 'تعذر فتح تطبيق واتساب. تأكد من تثبيت واتساب أو صحة الرقم.');
+    }
   }
 
   @override

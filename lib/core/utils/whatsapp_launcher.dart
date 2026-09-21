@@ -14,8 +14,13 @@ class WhatsAppLauncher {
   static String formatPhoneForWhatsApp(String? phone) {
     if (phone == null || phone.isEmpty) return '';
     var cleaned = phone.replaceAll(RegExp(r'\D'), '');
+    if (cleaned.startsWith('00')) {
+      cleaned = cleaned.substring(2);
+    }
     if (cleaned.startsWith('0')) {
       cleaned = '964${cleaned.substring(1)}';
+    } else if (cleaned.length == 10 && cleaned.startsWith('7')) {
+      cleaned = '964$cleaned';
     }
     return cleaned;
   }
@@ -69,23 +74,48 @@ class WhatsAppLauncher {
     required String phone,
     required String message,
   }) async {
-    final encodedMessage = Uri.encodeComponent(message);
-    final appUri = Uri.parse('whatsapp://send?phone=$phone&text=$encodedMessage');
-    final webUri = Uri.parse('https://wa.me/$phone?text=$encodedMessage');
+    final cleanPhone = formatPhoneForWhatsApp(phone);
+    if (cleanPhone.isEmpty) return false;
 
+    final encodedMessage = Uri.encodeComponent(message);
+    final appUri = Uri.parse('whatsapp://send?phone=$cleanPhone&text=$encodedMessage');
+    final apiUri = Uri.parse('https://api.whatsapp.com/send?phone=$cleanPhone&text=$encodedMessage');
+    final webUri = Uri.parse('https://wa.me/$cleanPhone?text=$encodedMessage');
+
+    // 1. Try native app scheme
     try {
       if (await canLaunchUrl(appUri)) {
-        return await launchUrl(appUri, mode: LaunchMode.externalApplication);
+        final ok = await launchUrl(appUri, mode: LaunchMode.externalApplication);
+        if (ok) return true;
       }
     } catch (_) {}
 
+    // 2. Try wa.me
     try {
       if (await canLaunchUrl(webUri)) {
-        return await launchUrl(webUri, mode: LaunchMode.externalApplication);
+        final ok = await launchUrl(webUri, mode: LaunchMode.externalApplication);
+        if (ok) return true;
       }
     } catch (_) {}
 
-    return false;
+    // 3. Try api.whatsapp.com
+    try {
+      if (await canLaunchUrl(apiUri)) {
+        final ok = await launchUrl(apiUri, mode: LaunchMode.externalApplication);
+        if (ok) return true;
+      }
+    } catch (_) {}
+
+    // 4. Force launch without pre-check (handles platforms where canLaunchUrl returns false)
+    try {
+      return await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      try {
+        return await launchUrl(webUri);
+      } catch (_) {
+        return false;
+      }
+    }
   }
 
   /// Direct phone call

@@ -31,7 +31,7 @@ class DashboardController extends ChangeNotifier {
             type: 'summary',
             period: 'month',
             currency: 'all',
-          )
+          ).catchError((_) => const ReportResult(type: 'summary', data: null))
         else
           Future.value(null),
       ]);

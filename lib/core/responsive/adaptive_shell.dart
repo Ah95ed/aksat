@@ -14,11 +14,13 @@ class NavItem {
   const NavItem({
     required this.route,
     required this.label,
+    required this.labelEn,
     required this.emoji,
   });
 
   final String route;
   final String label;
+  final String labelEn;
   final String emoji;
 }
 
@@ -35,14 +37,14 @@ class AdaptiveShell extends StatefulWidget {
   final Widget child;
 
   static const List<NavItem> navItems = [
-    NavItem(route: '/', label: 'لوحة التحكم', emoji: '🏠'),
-    NavItem(route: '/products', label: 'المواد', emoji: '📦'),
-    NavItem(route: '/inventory', label: 'المخزن', emoji: '🏪'),
-    NavItem(route: '/new-sale', label: 'إضافة بيع', emoji: '➕'),
-    NavItem(route: '/customers', label: 'المشترين', emoji: '👥'),
-    NavItem(route: '/upcoming', label: 'الأقساط القادمة', emoji: '🔔'),
-    NavItem(route: '/reports', label: 'التقارير', emoji: '📊'),
-    NavItem(route: '/settings', label: 'الإعدادات', emoji: '⚙️'),
+    NavItem(route: '/', label: 'لوحة التحكم', labelEn: 'Dashboard', emoji: '🏠'),
+    NavItem(route: '/products', label: 'المواد', labelEn: 'Products', emoji: '📦'),
+    NavItem(route: '/inventory', label: 'المخزن', labelEn: 'Inventory', emoji: '🏪'),
+    NavItem(route: '/new-sale', label: 'إضافة بيع', labelEn: 'New Sale', emoji: '➕'),
+    NavItem(route: '/customers', label: 'المشترين', labelEn: 'Customers', emoji: '👥'),
+    NavItem(route: '/upcoming', label: 'الأقساط القادمة', labelEn: 'Upcoming', emoji: '🔔'),
+    NavItem(route: '/reports', label: 'التقارير', labelEn: 'Reports', emoji: '📊'),
+    NavItem(route: '/settings', label: 'الإعدادات', labelEn: 'Settings', emoji: '⚙️'),
   ];
 
   @override
@@ -64,8 +66,21 @@ class _AdaptiveShellState extends State<AdaptiveShell> {
         : 'متجري';
     final remainingDays = settingsCtrl.settings.subscriptionRemainingDays;
 
+    final locale = Localizations.localeOf(context);
+    final isArabic = locale.languageCode == 'ar';
+    final textDirection = isArabic ? TextDirection.rtl : TextDirection.ltr;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    Widget buildSidebar({required ValueChanged<String> onSelect}) => _SidebarContent(
+      currentRoute: widget.currentRoute,
+      storeName: storeName,
+      isArabic: isArabic,
+      isDark: isDark,
+      onSelect: onSelect,
+    );
+
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: textDirection,
       child: Scaffold(
         key: _scaffoldKey,
         drawerScrimColor: AppColors.modalBackdrop,
@@ -74,12 +89,21 @@ class _AdaptiveShellState extends State<AdaptiveShell> {
             _drawerOpen = isOpen;
           });
         },
-        endDrawer: isMobile
+        drawer: isMobile && !isArabic
             ? Drawer(
                 width: AppDimens.sidebarWidth,
-                child: _SidebarContent(
-                  currentRoute: widget.currentRoute,
-                  storeName: storeName,
+                child: buildSidebar(
+                  onSelect: (route) {
+                    Navigator.of(context).pop();
+                    widget.onNavigate(route);
+                  },
+                ),
+              )
+            : null,
+        endDrawer: isMobile && isArabic
+            ? Drawer(
+                width: AppDimens.sidebarWidth,
+                child: buildSidebar(
                   onSelect: (route) {
                     Navigator.of(context).pop();
                     widget.onNavigate(route);
@@ -88,11 +112,13 @@ class _AdaptiveShellState extends State<AdaptiveShell> {
               )
             : null,
         body: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppColors.pageBgFrom, AppColors.pageBgTo],
+              colors: isDark
+                  ? const [Color(0xFF0F172A), Color(0xFF1E293B)]
+                  : const [AppColors.pageBgFrom, AppColors.pageBgTo],
             ),
           ),
           child: Stack(
@@ -100,15 +126,11 @@ class _AdaptiveShellState extends State<AdaptiveShell> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Fixed sidebar for >= 768px (placed on the right in RTL by being first child in RTL Row)
+                  // Fixed sidebar for >= 768px (placed on the right in RTL, on the left in LTR)
                   if (!isMobile)
                     SizedBox(
                       width: AppDimens.sidebarWidth,
-                      child: _SidebarContent(
-                        currentRoute: widget.currentRoute,
-                        storeName: storeName,
-                        onSelect: widget.onNavigate,
-                      ),
+                      child: buildSidebar(onSelect: widget.onNavigate),
                     ),
 
                   // Main content
@@ -155,10 +177,10 @@ class _AdaptiveShellState extends State<AdaptiveShell> {
               ),
 
               // Floating hamburger button for mobile (< 768px)
-              // Physical top-4 left-4 (top 16, left 16)
+              // Lowered below status bar using MediaQuery.paddingOf(context).top + 10
               if (isMobile)
                 Positioned(
-                  top: 16,
+                  top: MediaQuery.paddingOf(context).top + 10,
                   left: 16,
                   child: Material(
                     color: AppColors.blue600,
@@ -170,7 +192,11 @@ class _AdaptiveShellState extends State<AdaptiveShell> {
                         if (_drawerOpen) {
                           Navigator.of(context).pop();
                         } else {
-                          _scaffoldKey.currentState?.openEndDrawer();
+                          if (isArabic) {
+                            _scaffoldKey.currentState?.openEndDrawer();
+                          } else {
+                            _scaffoldKey.currentState?.openDrawer();
+                          }
                         }
                       },
                       borderRadius: AppDimens.borderLg,
@@ -197,11 +223,15 @@ class _SidebarContent extends StatefulWidget {
   const _SidebarContent({
     required this.currentRoute,
     required this.storeName,
+    required this.isArabic,
+    required this.isDark,
     required this.onSelect,
   });
 
   final String currentRoute;
   final String storeName;
+  final bool isArabic;
+  final bool isDark;
   final ValueChanged<String> onSelect;
 
   @override
@@ -221,12 +251,20 @@ class _SidebarContentState extends State<_SidebarContent> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [AppColors.blue700, AppColors.blue900],
+          colors: widget.isDark
+              ? const [Color(0xFF0F172A), Color(0xFF1E293B)]
+              : const [AppColors.blue700, AppColors.blue900],
         ),
+        border: widget.isDark
+            ? const Border(
+                left: BorderSide(color: Color(0xFF334155), width: 1),
+                right: BorderSide(color: Color(0xFF334155), width: 1),
+              )
+            : null,
       ),
       child: SafeArea(
         child: Scrollbar(
@@ -237,12 +275,15 @@ class _SidebarContentState extends State<_SidebarContent> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header (Padding 16, bottom border blue600)
+                // Header (Padding 16, bottom border blue600 / borderDark)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     border: Border(
-                      bottom: BorderSide(color: AppColors.blue600, width: 1),
+                      bottom: BorderSide(
+                        color: widget.isDark ? const Color(0xFF334155) : AppColors.blue600,
+                        width: 1,
+                      ),
                     ),
                   ),
                   child: Column(
@@ -282,7 +323,7 @@ class _SidebarContentState extends State<_SidebarContent> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'نظام إدارة الأقساط',
+                        widget.isArabic ? 'نظام إدارة الأقساط' : 'Installment Management',
                         style: AppTextStyles.xs(AppColors.blue200),
                         textAlign: TextAlign.center,
                       ),
@@ -295,10 +336,14 @@ class _SidebarContentState extends State<_SidebarContent> {
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.blue800.withValues(alpha: 0.4),
+                    color: widget.isDark
+                        ? const Color(0xFF1E293B)
+                        : AppColors.blue800.withValues(alpha: 0.4),
                     borderRadius: AppDimens.borderXl,
                     border: Border.all(
-                      color: AppColors.blue600.withValues(alpha: 0.5),
+                      color: widget.isDark
+                          ? const Color(0xFF334155)
+                          : AppColors.blue600.withValues(alpha: 0.5),
                       width: 1,
                     ),
                   ),
@@ -306,7 +351,7 @@ class _SidebarContentState extends State<_SidebarContent> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'الدعم الفني والخدمة',
+                        widget.isArabic ? 'الدعم الفني والخدمة' : 'Technical Support',
                         style: AppTextStyles.xsMedium(AppColors.blue200),
                         textAlign: TextAlign.center,
                       ),
@@ -358,7 +403,7 @@ class _SidebarContentState extends State<_SidebarContent> {
                                 const Text('💬', style: TextStyle(fontSize: 13)),
                                 const SizedBox(width: 6),
                                 Text(
-                                  'مراسلة واتساب',
+                                  widget.isArabic ? 'مراسلة واتساب' : 'WhatsApp Chat',
                                   style: AppTextStyles.xsMedium(AppColors.white),
                                 ),
                               ],
@@ -399,7 +444,7 @@ class _SidebarContentState extends State<_SidebarContent> {
                                   ),
                                   const SizedBox(width: 10),
                                   Text(
-                                    item.label,
+                                    widget.isArabic ? item.label : item.labelEn,
                                     style: AppTextStyles.smMedium(AppColors.white),
                                   ),
                                 ],

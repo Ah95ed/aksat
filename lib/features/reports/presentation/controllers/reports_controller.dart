@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../core/network/api_exceptions.dart';
 import '../../../../core/state/view_state.dart';
+import '../../domain/entities/report_result.dart';
 import '../../domain/repositories/reports_repository.dart';
 
 class ReportsController extends ChangeNotifier {
@@ -30,62 +31,65 @@ class ReportsController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      Future<ReportResult> safeFetch(String type, {String? groupBy}) async {
+        try {
+          return await _repository.fetch(
+            type: type,
+            period: period,
+            currency: currency,
+            groupBy: groupBy,
+            from: period == 'custom' && from.isNotEmpty ? from : null,
+            to: period == 'custom' && to.isNotEmpty ? to : null,
+          );
+        } catch (e) {
+          if (e is SessionExpired || e is SubscriptionStopped) rethrow;
+          if (kDebugMode) debugPrint('Report fetch error for $type: $e');
+          return ReportResult(type: type, data: null);
+        }
+      }
+
       final results = await Future.wait([
-        _repository.fetch(
-          type: 'summary',
-          period: period,
-          currency: currency,
-          from: period == 'custom' && from.isNotEmpty ? from : null,
-          to: period == 'custom' && to.isNotEmpty ? to : null,
-        ),
-        _repository.fetch(
-          type: 'by_product',
-          period: period,
-          currency: currency,
-          from: period == 'custom' && from.isNotEmpty ? from : null,
-          to: period == 'custom' && to.isNotEmpty ? to : null,
-        ),
-        _repository.fetch(
-          type: 'top_selling',
-          period: period,
-          currency: currency,
-          from: period == 'custom' && from.isNotEmpty ? from : null,
-          to: period == 'custom' && to.isNotEmpty ? to : null,
-        ),
-        _repository.fetch(
-          type: 'timeline',
-          period: period,
-          currency: currency,
-          groupBy: groupBy,
-          from: period == 'custom' && from.isNotEmpty ? from : null,
-          to: period == 'custom' && to.isNotEmpty ? to : null,
-        ),
+        safeFetch('summary'),
+        safeFetch('by_product'),
+        safeFetch('top_selling'),
+        safeFetch('timeline', groupBy: groupBy),
       ]);
 
       final sData = results[0].data;
-      if (sData is Map<String, dynamic>) {
-        summary = sData;
+      if (sData is Map) {
+        summary = Map<String, dynamic>.from(
+          sData.map((k, v) => MapEntry(k.toString(), v)),
+        );
       } else {
         summary = null;
       }
 
       final bpData = results[1].data;
       if (bpData is List) {
-        byProduct = bpData.whereType<Map<String, dynamic>>().toList();
+        byProduct = bpData
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m.map((k, v) => MapEntry(k.toString(), v))))
+            .toList();
       } else {
         byProduct = [];
       }
 
       final tsData = results[2].data;
       if (tsData is List) {
-        topSelling = tsData.whereType<Map<String, dynamic>>().toList();
+        topSelling = tsData
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m.map((k, v) => MapEntry(k.toString(), v))))
+            .toList();
       } else {
         topSelling = [];
       }
 
       final tlData = results[3].data;
       if (tlData is List) {
-        timeline = tlData.whereType<Map<String, dynamic>>().toList();
+        timeline = tlData
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m.map((k, v) => MapEntry(k.toString(), v))))
+            .toList();
       } else {
         timeline = [];
       }
@@ -115,7 +119,10 @@ class ReportsController extends ChangeNotifier {
         to: period == 'custom' && to.isNotEmpty ? to : null,
       );
       if (res.data is List) {
-        timeline = (res.data as List).whereType<Map<String, dynamic>>().toList();
+        timeline = (res.data as List)
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m.map((k, v) => MapEntry(k.toString(), v))))
+            .toList();
       }
       notifyListeners();
     } catch (_) {}

@@ -6,6 +6,8 @@ void main() {
     test('converts Iraqi local numbers with leading 0 to international format (964...) ', () {
       expect(WhatsAppLauncher.formatPhoneForWhatsApp('07701234567'), '9647701234567');
       expect(WhatsAppLauncher.formatPhoneForWhatsApp('0780 123 4567'), '9647801234567');
+      expect(WhatsAppLauncher.formatPhoneForWhatsApp('7701234567'), '9647701234567');
+      expect(WhatsAppLauncher.formatPhoneForWhatsApp('009647701234567'), '9647701234567');
     });
 
     test('preserves international number without leading 0', () {
