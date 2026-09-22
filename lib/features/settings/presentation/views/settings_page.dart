@@ -6,7 +6,6 @@ import '../../../../core/state/locale_controller.dart';
 import '../../../../core/state/theme_controller.dart';
 import '../../../../core/state/view_state.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -224,21 +223,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       label: 'القالب',
                       maxLines: 6,
                     ),
-                    const SizedBox(height: 8),
-
-                    Text('المتغيرات المتاحة:', style: AppTextStyles.xs(AppColors.gray600)),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: const [
-                        _VariableChip(code: '{customer_name}', label: 'اسم المشتري'),
-                        _VariableChip(code: '{product_name}', label: 'اسم المادة'),
-                        _VariableChip(code: '{amount}', label: 'مبلغ القسط'),
-                        _VariableChip(code: '{currency}', label: 'رمز العملة'),
-                        _VariableChip(code: '{due_date}', label: 'تاريخ الاستحقاق'),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -292,107 +276,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // Card 5: Appearance & Language
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isArabic ? '🎨 المظهر واللغة' : '🎨 Appearance & Language',
-                      style: AppTextStyles.xlBold(cardHeaderColor),
-                    ),
-                    const SizedBox(height: 12),
-                    Divider(height: 1, color: dividerColor),
-                    const SizedBox(height: 16),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isArabic ? 'الوضع الداكن' : 'Dark Mode',
-                              style: AppTextStyles.baseMedium(primaryTextColor),
-                            ),
-                            Text(
-                              isArabic ? 'تفعيل النمط الليلي للتطبيق' : 'Enable dark theme',
-                              style: AppTextStyles.xs(secondaryTextColor),
-                            ),
-                          ],
-                        ),
-                        Switch(
-                          value: theme.isDark,
-                          onChanged: (_) => theme.toggle(),
-                          activeThumbColor: AppColors.blue600,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isArabic ? 'اللغة' : 'Language',
-                              style: AppTextStyles.baseMedium(primaryTextColor),
-                            ),
-                            Text(
-                              'العربية / English',
-                              style: AppTextStyles.xs(secondaryTextColor),
-                            ),
-                          ],
-                        ),
-                        DropdownButton<String>(
-                          value: locale.locale.languageCode,
-                          dropdownColor: isDark ? const Color(0xFF1E293B) : AppColors.white,
-                          style: AppTextStyles.base(primaryTextColor),
-                          items: const [
-                            DropdownMenuItem(value: 'ar', child: Text('العربية')),
-                            DropdownMenuItem(value: 'en', child: Text('English')),
-                          ],
-                          onChanged: (lang) {
-                            if (lang != null) locale.setLocale(lang);
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
               const SizedBox(height: 32),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _VariableChip extends StatelessWidget {
-  const _VariableChip({required this.code, required this.label});
-  final String code;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.gray100,
-        borderRadius: AppDimens.borderSm,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(code, style: const TextStyle(fontFamily: 'monospace', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
-          const SizedBox(width: 4),
-          Text('- $label', style: AppTextStyles.xs(AppColors.gray600)),
-        ],
       ),
     );
   }
