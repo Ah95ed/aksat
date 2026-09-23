@@ -14,4 +14,5 @@ abstract interface class AuthRepository {
 
   Future<bool> hasSession();
   Future<void> logout();
+  Future<void> deleteAccount({required String password});
 }

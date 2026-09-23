@@ -29,4 +29,11 @@ class AuthRemoteDataSource {
     );
     return AuthSessionModel.fromJson(response);
   }
+
+  Future<void> deleteAccount({required String password}) async {
+    await _apiClient.delete(
+      ApiEndpoints.account,
+      data: {'password': password},
+    );
+  }
 }

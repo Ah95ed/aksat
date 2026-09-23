@@ -89,4 +89,23 @@ class AuthController extends ChangeNotifier {
     status = AuthStatus.unauthenticated;
     notifyListeners();
   }
+
+  Future<bool> deleteAccount({required String password}) async {
+    errorMessage = null;
+    try {
+      await _repository.deleteAccount(password: password);
+      user = null;
+      status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return true;
+    } on ApiError catch (error) {
+      errorMessage = error.message;
+    } on NetworkError catch (error) {
+      errorMessage = error.message ?? 'تعذر الاتصال بالخادم.';
+    } catch (_) {
+      errorMessage = 'حدث خطأ غير متوقع أثناء حذف الحساب.';
+    }
+    notifyListeners();
+    return false;
+  }
 }

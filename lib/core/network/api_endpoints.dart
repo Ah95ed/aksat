@@ -13,4 +13,5 @@ class ApiEndpoints {
   static const String inventory = 'inventory.php';
   static const String reports = 'reports.php';
   static const String settings = 'settings.php';
+  static const String account = 'account.php';
 }

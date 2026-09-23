@@ -6,6 +6,7 @@ import '../../../../core/state/locale_controller.dart';
 import '../../../../core/state/theme_controller.dart';
 import '../../../../core/state/view_state.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -13,6 +14,7 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_dialogs.dart';
 import '../../../../core/widgets/app_spinner.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../domain/entities/store_settings.dart';
 import '../controllers/settings_controller.dart';
 
@@ -276,11 +278,311 @@ class _SettingsPageState extends State<SettingsPage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // Card 5: Danger Zone - Delete Account
+              AppCard(
+                color: isDark ? const Color(0xFF261215) : AppColors.red50,
+                border: Border.all(
+                  color: isDark ? const Color(0xFF7F1D1D) : AppColors.red200,
+                  width: 1.5,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: AppColors.red600,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isArabic ? 'منطقة الخطر: حذف الحساب' : 'Danger Zone: Delete Account',
+                          style: AppTextStyles.xlBold(AppColors.red600),
+                        ),
+                        const Spacer(),
+                        AppBadge(
+                          label: isArabic ? 'إجراء نهائي' : 'Permanent',
+                          variant: AppBadgeVariant.danger,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Divider(
+                      height: 1,
+                      color: isDark ? const Color(0xFF7F1D1D) : AppColors.red200,
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      isArabic
+                          ? 'تحذير: عند النقر على حذف الحساب سيتم مسح كافة البيانات بشكل كامل وفوري من السيرفر ولن تتمكن من استعادتها بأي شكل من الأشكال، ويشمل ذلك:'
+                          : 'Warning: Deleting your account permanently deletes all your store data from the server. This includes:',
+                      style: AppTextStyles.baseMedium(
+                        isDark ? AppColors.red200 : AppColors.red800,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildDeletedItemRow('📦', isArabic ? 'المخزن والمنتجات المسجلة والكميات' : 'Inventory and products', isDark),
+                    _buildDeletedItemRow('👥', isArabic ? 'سجل العملاء والمشترين وأرقامهم' : 'Customers and buyers records', isDark),
+                    _buildDeletedItemRow('💰', isArabic ? 'المبيعات والأقساط المسجلة والدفعات' : 'Sales, installments and payments', isDark),
+                    _buildDeletedItemRow('📊', isArabic ? 'كافة التقارير والإحصائيات والأرباح' : 'All reports and financial statistics', isDark),
+                    _buildDeletedItemRow('🏪', isArabic ? 'إعدادات وبيانات المتجر بالكامل' : 'Store profile and all settings', isDark),
+                    const SizedBox(height: 20),
+                    Align(
+                      alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
+                      child: AppButton(
+                        text: isArabic ? '🗑️ حذف الحساب نهائياً' : '🗑️ Delete Account Permanently',
+                        variant: AppButtonVariant.danger,
+                        size: AppButtonSize.large,
+                        onPressed: () => _showDeleteAccountDialog(context, isArabic),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDeletedItemRow(String emoji, String text, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTextStyles.sm(
+                isDark ? AppColors.gray300 : AppColors.gray700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showDeleteAccountDialog(BuildContext context, bool isArabic) async {
+    final passwordController = TextEditingController();
+    bool obscure = true;
+    bool isSubmitting = false;
+    String? localError;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: !isSubmitting,
+      barrierColor: AppColors.modalBackdrop,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final bg = isDark ? const Color(0xFF1E293B) : AppColors.white;
+            final textColor = isDark ? AppColors.white : AppColors.gray900;
+            final secondaryColor = isDark ? AppColors.gray300 : AppColors.gray600;
+
+            return Directionality(
+              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+              child: AlertDialog(
+                backgroundColor: bg,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: AppDimens.border2Xl,
+                ),
+                title: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: AppColors.red100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.delete_forever_rounded,
+                        color: AppColors.red600,
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        isArabic ? 'تأكيد حذف الحساب نهائياً' : 'Confirm Account Deletion',
+                        style: AppTextStyles.xlBold(AppColors.red600),
+                      ),
+                    ),
+                  ],
+                ),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF3B1215) : AppColors.red50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isDark ? AppColors.red800 : AppColors.red200,
+                          ),
+                        ),
+                        child: Text(
+                          isArabic
+                              ? '⚠️ تنبيه: سيتم حذف جميع بيانات متجرك والمخزن والعملاء والأقساط بشكل كامل ودائم من السيرفر. لا يمكن التراجع عن هذا الإجراء.'
+                              : '⚠️ Warning: All store data, inventory, customers, and installments will be permanently erased. This action cannot be undone.',
+                          style: AppTextStyles.sm(
+                            isDark ? AppColors.red200 : AppColors.red700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        isArabic
+                            ? 'أدخل كلمة المرور الخاصة بحسابك للتأكيد:'
+                            : 'Enter your account password to confirm:',
+                        style: AppTextStyles.smMedium(textColor),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: passwordController,
+                        obscureText: obscure,
+                        style: AppTextStyles.base(textColor),
+                        decoration: InputDecoration(
+                          hintText: isArabic ? 'كلمة المرور' : 'Password',
+                          hintStyle: AppTextStyles.base(secondaryColor),
+                          filled: true,
+                          fillColor: isDark ? const Color(0xFF0F172A) : AppColors.gray50,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(
+                              color: isDark ? const Color(0xFF475569) : AppColors.gray300,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(
+                              color: isDark ? const Color(0xFF475569) : AppColors.gray300,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                              color: AppColors.red500,
+                              width: 1.8,
+                            ),
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              color: secondaryColor,
+                            ),
+                            onPressed: () {
+                              setDialogState(() => obscure = !obscure);
+                            },
+                          ),
+                        ),
+                      ),
+                      if (localError != null) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          localError!,
+                          style: AppTextStyles.smBold(AppColors.red500),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                actions: [
+                  TextButton(
+                    onPressed: isSubmitting ? null : () => Navigator.of(dialogContext).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: secondaryColor,
+                    ),
+                    child: Text(isArabic ? 'إلغاء' : 'Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final password = passwordController.text.trim();
+                            if (password.isEmpty) {
+                              setDialogState(() {
+                                localError = isArabic
+                                    ? 'يرجى إدخال كلمة المرور أولاً'
+                                    : 'Please enter your password first';
+                              });
+                              return;
+                            }
+                            setDialogState(() {
+                              isSubmitting = true;
+                              localError = null;
+                            });
+
+                            final auth = context.read<AuthController>();
+                            final success = await auth.deleteAccount(password: password);
+
+                            if (!context.mounted) return;
+
+                            if (success) {
+                              Navigator.of(dialogContext).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    isArabic
+                                        ? 'تم حذف الحساب وجميع البيانات بنجاح.'
+                                        : 'Account and all data deleted successfully.',
+                                  ),
+                                  backgroundColor: AppColors.red600,
+                                ),
+                              );
+                            } else {
+                              setDialogState(() {
+                                isSubmitting = false;
+                                localError = auth.errorMessage ??
+                                    (isArabic
+                                        ? 'فشل حذف الحساب. تأكد من صحة كلمة المرور.'
+                                        : 'Failed to delete account. Check your password.');
+                              });
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.red600,
+                      foregroundColor: AppColors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.white,
+                            ),
+                          )
+                        : Text(
+                            isArabic ? 'تأكيد الحذف النهائي' : 'Permanently Delete',
+                            style: AppTextStyles.baseBold(AppColors.white),
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

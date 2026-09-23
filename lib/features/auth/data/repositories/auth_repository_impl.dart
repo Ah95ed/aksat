@@ -42,4 +42,10 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> logout() => _authInterceptor.clearToken();
+
+  @override
+  Future<void> deleteAccount({required String password}) async {
+    await _remote.deleteAccount(password: password);
+    await _authInterceptor.clearToken();
+  }
 }

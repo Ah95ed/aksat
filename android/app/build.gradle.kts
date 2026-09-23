@@ -62,6 +62,23 @@ android {
             )
         }
     }
+
+    packaging {
+        jniLibs {
+            pickFirsts.add("lib/**/libtensorflowlite_jni.so")
+            pickFirsts.add("lib/**/libtensorflowlite.so")
+            pickFirsts.add("**/libtensorflowlite_jni.so")
+            pickFirsts.add("**/libtensorflowlite.so")
+            pickFirsts.add("**/libc++_shared.so")
+        }
+        resources {
+            pickFirsts.add("lib/**/libtensorflowlite_jni.so")
+            pickFirsts.add("lib/**/libtensorflowlite.so")
+            pickFirsts.add("**/libtensorflowlite_jni.so")
+            pickFirsts.add("**/libtensorflowlite.so")
+            pickFirsts.add("**/libc++_shared.so")
+        }
+    }
 }
 
 kotlin {
