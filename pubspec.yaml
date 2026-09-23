@@ -1,6 +1,6 @@
 name: aksat
 description: "نظام إدارة الأقساط والبيع بالتقسيط - تطبيق Flutter كلي."
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.0+1
 
 environment:

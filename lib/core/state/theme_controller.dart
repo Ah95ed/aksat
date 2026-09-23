@@ -3,31 +3,18 @@ import 'package:flutter/material.dart';
 import '../storage/prefs_service.dart';
 
 class ThemeController extends ChangeNotifier {
-  ThemeController(this._prefs) : mode = _parse(_prefs.getThemeMode());
+  ThemeController(this._prefs) : mode = ThemeMode.light;
 
   final PrefsService _prefs;
-  ThemeMode mode;
+  ThemeMode mode = ThemeMode.light;
 
-  bool get isDark => mode == ThemeMode.dark;
+  bool get isDark => false;
 
-  Future<void> toggle() => setMode(isDark ? ThemeMode.light : ThemeMode.dark);
+  Future<void> toggle() async {}
 
   Future<void> setMode(ThemeMode value) async {
-    if (mode == value) return;
-    mode = value;
-    await _prefs.setThemeMode(_name(value));
+    mode = ThemeMode.light;
+    await _prefs.setThemeMode('light');
     notifyListeners();
   }
-
-  static ThemeMode _parse(String value) => switch (value) {
-    'light' => ThemeMode.light,
-    'dark' => ThemeMode.dark,
-    _ => ThemeMode.system,
-  };
-
-  static String _name(ThemeMode value) => switch (value) {
-    ThemeMode.light => 'light',
-    ThemeMode.dark => 'dark',
-    ThemeMode.system => 'system',
-  };
 }

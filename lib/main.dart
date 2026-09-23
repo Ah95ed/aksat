@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'core/l10n/app_localizations.dart';
 import 'core/network/api_client.dart';
 import 'core/network/auth_interceptor.dart';
@@ -127,8 +126,7 @@ class AksatApp extends StatelessWidget {
           title: 'نظام إدارة الأقساط',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: theme.mode,
+          themeMode: ThemeMode.light,
           locale: locale.locale,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
