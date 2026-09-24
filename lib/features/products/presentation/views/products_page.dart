@@ -238,7 +238,15 @@ class _ProductsPageState extends State<ProductsPage> {
 
                               if (success) {
                                 if (modalCtx.mounted) Navigator.of(modalCtx).pop();
-                                ctrl.load();
+                                await ctrl.load();
+                                if (mounted) {
+                                  AppDialogs.alert(
+                                    context,
+                                    editing != null
+                                        ? '✅ تم تعديل المادة بنجاح'
+                                        : '✅ تم حفظ المادة بنجاح',
+                                  );
+                                }
                               } else if (mounted) {
                                 AppDialogs.alert(
                                   context,
@@ -276,6 +284,8 @@ class _ProductsPageState extends State<ProductsPage> {
     final success = await ctrl.remove(product.id);
     if (!success && mounted) {
       AppDialogs.alert(context, ctrl.errorMessage ?? 'فشل الحذف');
+    } else if (mounted) {
+      AppDialogs.alert(context, '✅ تم حذف المادة بنجاح');
     }
   }
 

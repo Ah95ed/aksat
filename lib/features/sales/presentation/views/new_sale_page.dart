@@ -44,7 +44,7 @@ class _NewSalePageState extends State<NewSalePage> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
 
-  List<dynamic> _suggestions = [];
+  List<Map<String, dynamic>> _suggestions = [];
   bool _showSuggestions = false;
   Timer? _searchTimer;
 
@@ -98,10 +98,13 @@ class _NewSalePageState extends State<NewSalePage> {
   }
 
   void _onNameChanged(String val) {
-    _selectedCustomerId = null;
+    final query = val.trim();
+    if (_selectedCustomerId != null && _nameController.text != val) {
+      _selectedCustomerId = null;
+    }
     _searchTimer?.cancel();
 
-    if (val.trim().length < 2) {
+    if (query.isEmpty) {
       setState(() {
         _suggestions = [];
         _showSuggestions = false;
@@ -109,18 +112,22 @@ class _NewSalePageState extends State<NewSalePage> {
       return;
     }
 
-    _searchTimer = Timer(const Duration(milliseconds: 300), () async {
+    _searchTimer = Timer(const Duration(milliseconds: 250), () async {
       try {
         final apiClient = context.read<ApiClient>();
         final res = await apiClient.get(
           ApiEndpoints.customers,
-          query: {'search': val.trim()},
+          query: {'search': query},
         );
         final data = res['data'];
         if (mounted && data is List) {
+          final list = data
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
           setState(() {
-            _suggestions = data;
-            _showSuggestions = true;
+            _suggestions = list;
+            _showSuggestions = list.isNotEmpty;
           });
         }
       } catch (_) {}
@@ -128,6 +135,7 @@ class _NewSalePageState extends State<NewSalePage> {
   }
 
   void _selectSuggestion(Map<String, dynamic> c) {
+    FocusScope.of(context).unfocus();
     setState(() {
       _selectedCustomerId = c['id']?.toString();
       _nameController.text = c['name']?.toString() ?? '';
@@ -352,70 +360,148 @@ class _NewSalePageState extends State<NewSalePage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('اسم المشتري *', style: AppTextStyles.smBold(AppColors.gray700)),
-                        const SizedBox(height: 6),
-                        Stack(
-                          clipBehavior: Clip.none,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            TextField(
-                              controller: _nameController,
-                              onChanged: _onNameChanged,
-                              onTap: () {
-                                if (_suggestions.isNotEmpty) {
-                                  setState(() => _showSuggestions = true);
-                                }
-                              },
-                              style: AppTextStyles.base(AppColors.gray800),
-                              decoration: InputDecoration(
-                                hintText: 'ابدأ بكتابة الاسم...',
-                                hintStyle: AppTextStyles.base(AppColors.gray400),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                border: OutlineInputBorder(borderRadius: AppDimens.borderMd),
-                              ),
-                            ),
-                            if (_showSuggestions && _suggestions.isNotEmpty)
-                              Positioned(
-                                top: 52,
-                                left: 0,
-                                right: 0,
-                                child: Container(
-                                  constraints: const BoxConstraints(maxHeight: 200),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.white,
-                                    borderRadius: AppDimens.borderLg,
-                                    border: Border.all(color: AppColors.gray300),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color(0x1F000000),
-                                        blurRadius: 10,
-                                        offset: Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ListView.builder(
-                                    shrinkWrap: true,
-                                    itemCount: _suggestions.length,
-                                    itemBuilder: (ctx, i) {
-                                      final s = _suggestions[i] as Map<String, dynamic>;
-                                      return InkWell(
-                                        onTap: () => _selectSuggestion(s),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(s['name']?.toString() ?? '', style: AppTextStyles.baseMedium(AppColors.gray800)),
-                                              Text('📞 ${s['phone'] ?? ''}', style: AppTextStyles.sm(AppColors.gray500), textDirection: TextDirection.ltr),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
+                            Text('اسم المشتري *', style: AppTextStyles.smBold(AppColors.gray700)),
+                            if (_selectedCustomerId != null)
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedCustomerId = null;
+                                    _nameController.clear();
+                                    _phoneController.clear();
+                                    _addressController.clear();
+                                  });
+                                },
+                                child: Text(
+                                  'تغيير المشتري ✕',
+                                  style: AppTextStyles.xsBold(AppColors.blue600),
                                 ),
                               ),
                           ],
                         ),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _nameController,
+                          onChanged: _onNameChanged,
+                          onTap: () {
+                            if (_suggestions.isNotEmpty) {
+                              setState(() => _showSuggestions = true);
+                            }
+                          },
+                          style: AppTextStyles.base(AppColors.gray800),
+                          decoration: InputDecoration(
+                            hintText: 'ابدأ بكتابة اسم المشتري للبحث...',
+                            hintStyle: AppTextStyles.base(AppColors.gray400),
+                            prefixIcon: const Icon(Icons.search, color: AppColors.gray400, size: 20),
+                            suffixIcon: _nameController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, size: 18, color: AppColors.gray400),
+                                    onPressed: () {
+                                      setState(() {
+                                        _nameController.clear();
+                                        _selectedCustomerId = null;
+                                        _suggestions = [];
+                                        _showSuggestions = false;
+                                      });
+                                    },
+                                  )
+                                : null,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: AppDimens.borderMd,
+                              borderSide: const BorderSide(color: AppColors.gray300),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: AppDimens.borderMd,
+                              borderSide: const BorderSide(color: AppColors.gray300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: AppDimens.borderMd,
+                              borderSide: const BorderSide(color: AppColors.blue600, width: 2),
+                            ),
+                          ),
+                        ),
+                        if (_showSuggestions && _suggestions.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            constraints: const BoxConstraints(maxHeight: 220),
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: AppDimens.borderLg,
+                              border: Border.all(color: AppColors.blue500, width: 1.5),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x1F000000),
+                                  blurRadius: 10,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              itemCount: _suggestions.length,
+                              separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.gray200),
+                              itemBuilder: (ctx, i) {
+                                final s = _suggestions[i];
+                                final name = s['name']?.toString() ?? '';
+                                final phone = s['phone']?.toString() ?? '';
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => _selectSuggestion(s),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: const BoxDecoration(
+                                              color: AppColors.blue50,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.person_outline, size: 18, color: AppColors.blue600),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  name,
+                                                  style: AppTextStyles.baseBold(AppColors.gray800),
+                                                ),
+                                                Text(
+                                                  'مشتري مسجل مسبقاً',
+                                                  style: AppTextStyles.xs(AppColors.gray500),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          if (phone.isNotEmpty)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.gray100,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                '📞 $phone',
+                                                style: AppTextStyles.smBold(AppColors.blue700),
+                                                textDirection: TextDirection.ltr,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -446,9 +532,17 @@ class _NewSalePageState extends State<NewSalePage> {
                           borderRadius: AppDimens.borderMd,
                           border: Border.all(color: AppColors.green200),
                         ),
-                        child: Text(
-                          '✅ مشتري موجود مسبقاً - سيتم استخدام بياناته',
-                          style: AppTextStyles.smBold(AppColors.green800),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle, color: AppColors.green600, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'تم تحديد المشتري تلقائياً: ${_nameController.text} (${_phoneController.text})',
+                                style: AppTextStyles.smBold(AppColors.green800),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

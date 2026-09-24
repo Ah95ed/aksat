@@ -34,22 +34,28 @@ class ProductsController extends ChangeNotifier {
   }
 
   Future<bool> save(Product product) async {
+    errorMessage = null;
     try {
       final saved = product.id.isEmpty
           ? await _repository.create(product)
           : await _repository.update(product);
       final index = products.indexWhere((item) => item.id == saved.id);
-      products = index == -1 ? [saved, ...products] : [...products]
-        ..[index] = saved;
+      if (saved.id.isNotEmpty && index != -1) {
+        products = [...products]..[index] = saved;
+      } else {
+        products = [saved, ...products.where((p) => p.id != saved.id)];
+      }
       state = ViewState.success;
+      errorMessage = null;
       notifyListeners();
       return true;
     } on ApiError catch (error) {
       errorMessage = error.message;
     } on NetworkError catch (error) {
       errorMessage = error.message ?? 'تعذر الاتصال بالخادم.';
-    } catch (_) {
-      errorMessage = 'تعذر حفظ المادة.';
+    } catch (e, stack) {
+      debugPrint('Error saving product: $e\n$stack');
+      errorMessage = 'تعذر حفظ المادة: $e';
     }
     state = ViewState.error;
     notifyListeners();

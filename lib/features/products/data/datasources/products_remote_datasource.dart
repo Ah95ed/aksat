@@ -22,9 +22,7 @@ class ProductsRemoteDataSource {
       ApiEndpoints.products,
       data: product.toJson(),
     );
-    return ProductModel.fromJson(
-      response['data'] as Map<String, dynamic>? ?? {},
-    );
+    return _parseProductResponse(response, fallback: product);
   }
 
   Future<ProductModel> update(ProductModel product) async {
@@ -32,8 +30,41 @@ class ProductsRemoteDataSource {
       ApiEndpoints.products,
       data: product.toJson(idOverride: product.id),
     );
-    return ProductModel.fromJson(
-      response['data'] as Map<String, dynamic>? ?? {},
+    return _parseProductResponse(response, fallback: product);
+  }
+
+  ProductModel _parseProductResponse(
+    Map<String, dynamic> response, {
+    required ProductModel fallback,
+  }) {
+    final rawData = response['data'];
+    Map<String, dynamic> map = {};
+
+    if (rawData is Map) {
+      map = rawData.map((k, v) => MapEntry(k.toString(), v));
+    } else if (rawData is int || rawData is String) {
+      map = {'id': rawData.toString()};
+    } else if (response['id'] != null) {
+      map = {'id': response['id'].toString()};
+    }
+
+    final parsed = ProductModel.fromJson(map);
+
+    return ProductModel(
+      id: parsed.id.isNotEmpty
+          ? parsed.id
+          : (fallback.id.isNotEmpty
+                ? fallback.id
+                : (response['id']?.toString() ?? '')),
+      name: parsed.name.isNotEmpty ? parsed.name : fallback.name,
+      price: parsed.price > 0 ? parsed.price : fallback.price,
+      costPrice: parsed.costPrice > 0 ? parsed.costPrice : fallback.costPrice,
+      currency: parsed.currency.isNotEmpty
+          ? parsed.currency
+          : fallback.currency,
+      notes: (parsed.notes != null && parsed.notes!.isNotEmpty)
+          ? parsed.notes
+          : fallback.notes,
     );
   }
 
