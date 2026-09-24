@@ -70,11 +70,23 @@ class _NewSalePageState extends State<NewSalePage> {
   void initState() {
     super.initState();
     _loadProducts();
+    _quantityController.addListener(_onFieldChanged);
+    _totalPriceController.addListener(_onFieldChanged);
+    _downPaymentController.addListener(_onFieldChanged);
+    _installmentsCountController.addListener(_onFieldChanged);
+  }
+
+  void _onFieldChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _searchTimer?.cancel();
+    _quantityController.removeListener(_onFieldChanged);
+    _totalPriceController.removeListener(_onFieldChanged);
+    _downPaymentController.removeListener(_onFieldChanged);
+    _installmentsCountController.removeListener(_onFieldChanged);
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
@@ -166,8 +178,19 @@ class _NewSalePageState extends State<NewSalePage> {
     }
   }
 
+  String _normalizeNumber(String s) {
+    const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    var res = s.trim();
+    for (int i = 0; i < arabic.length; i++) {
+      res = res.replaceAll(arabic[i], english[i]);
+    }
+    return res.replaceAll(',', '').replaceAll(' ', '');
+  }
+
   void _onQuantityChanged(String val) {
-    final qty = int.tryParse(val) ?? 1;
+    final clean = _normalizeNumber(val);
+    final qty = int.tryParse(clean) ?? 1;
     setState(() => _quantity = qty <= 0 ? 1 : qty);
     if (_selectedProduct != null) {
       final total = _selectedProduct!.price * _quantity;
@@ -176,17 +199,18 @@ class _NewSalePageState extends State<NewSalePage> {
   }
 
   double get _totalPrice {
-    final clean = _totalPriceController.text.replaceAll(',', '');
+    final clean = _normalizeNumber(_totalPriceController.text);
     return double.tryParse(clean) ?? 0.0;
   }
 
   double get _downPayment {
-    final clean = _downPaymentController.text.replaceAll(',', '');
+    final clean = _normalizeNumber(_downPaymentController.text);
     return double.tryParse(clean) ?? 0.0;
   }
 
   int get _installmentsCount {
-    return int.tryParse(_installmentsCountController.text) ?? 1;
+    final clean = _normalizeNumber(_installmentsCountController.text);
+    return int.tryParse(clean) ?? 0;
   }
 
   double get _remaining => (_totalPrice - _downPayment).clamp(0.0, double.infinity);
@@ -205,9 +229,15 @@ class _NewSalePageState extends State<NewSalePage> {
   String get _profitPercentage {
     if (_selectedProduct == null || _selectedProduct!.costPrice <= 0) return '0';
     final totalCost = _selectedProduct!.costPrice * _quantity;
-    if (totalCost == 0) return '0';
+    if (totalCost <= 0) return '0';
     return ((_expectedProfit / totalCost) * 100).toStringAsFixed(1);
   }
+
+  bool get _hasTotalPrice => _totalPriceController.text.trim().isNotEmpty && _totalPrice > 0;
+  bool get _hasDownPayment => _downPaymentController.text.trim().isNotEmpty;
+  bool get _hasRemaining => _hasTotalPrice && _remaining > 0;
+  bool get _hasInstallmentsCount => _installmentsCountController.text.trim().isNotEmpty && _installmentsCount > 0;
+  bool get _hasInstallmentValue => _hasRemaining && _hasInstallmentsCount && _installmentValue > 0;
 
   bool get _canSubmit {
     return _nameController.text.trim().isNotEmpty &&
@@ -324,7 +354,7 @@ class _NewSalePageState extends State<NewSalePage> {
         ? (_selectedProduct!.currency == 'USD'
             ? '\$'
             : MoneyFormatter.currencySymbol('LOCAL', settings))
-        : '';
+        : MoneyFormatter.currencySymbol('LOCAL', settings);
 
     final firstDate = DateFormatter.previewFirstInstallmentDate(_saleDate, _installmentType);
     final lastDate = DateFormatter.previewLastInstallmentDate(_saleDate, _installmentType, _installmentsCount);
@@ -797,61 +827,10 @@ class _NewSalePageState extends State<NewSalePage> {
                     const SizedBox(height: 24),
 
                     // Section 3: Summary Card
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFEFF6FF), Color(0xFFEEF2FF)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: AppDimens.borderLg,
-                        border: Border.all(color: AppColors.blue200, width: 2),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text('📋 ملخص العملية', style: AppTextStyles.lgBold(AppColors.blue800)),
-                          const SizedBox(height: 12),
-
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final isWide = constraints.maxWidth >= 500;
-                              final s1 = _summaryItem('قيمة القسط الواحد', '${MoneyFormatter.formatAmount(_installmentValue)} $sym');
-                              final s2 = _summaryItem('المبلغ المتبقي تقسيطه', '${MoneyFormatter.formatAmount(_remaining)} $sym');
-                              final s3 = _summaryItem('تاريخ أول قسط', firstDate);
-                              final s4 = _summaryItem('تاريخ آخر قسط', lastDate);
-
-                              if (isWide) {
-                                return Column(
-                                  children: [
-                                    Row(children: [Expanded(child: s1), const SizedBox(width: 8), Expanded(child: s2)]),
-                                    const SizedBox(height: 8),
-                                    Row(children: [Expanded(child: s3), const SizedBox(width: 8), Expanded(child: s4)]),
-                                  ],
-                                );
-                              }
-                              return Column(children: [s1, const SizedBox(height: 8), s2, const SizedBox(height: 8), s3, const SizedBox(height: 8), s4]);
-                            },
-                          ),
-
-                          if (_selectedProduct != null && _selectedProduct!.costPrice > 0) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.green50,
-                                borderRadius: AppDimens.borderMd,
-                                border: Border.all(color: AppColors.green200),
-                              ),
-                              child: Text(
-                                '💰 الربح المتوقع من هذه البيعة: ${MoneyFormatter.formatAmount(_expectedProfit)} $sym (نسبة الربح: $_profitPercentage%)',
-                                style: AppTextStyles.smBold(AppColors.green800),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+                    _buildSummaryCard(
+                      sym: sym,
+                      firstDate: firstDate,
+                      lastDate: lastDate,
                     ),
 
                     const SizedBox(height: 24),
@@ -940,19 +919,352 @@ class _NewSalePageState extends State<NewSalePage> {
     );
   }
 
-  Widget _summaryItem(String label, String value) {
+  Widget _buildSummaryCard({
+    required String sym,
+    required String firstDate,
+    required String lastDate,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.white,
+        borderRadius: AppDimens.borderLg,
+        border: Border.all(color: AppColors.blue200, width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: const BoxDecoration(
+              color: AppColors.blue50,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue600,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('📋 ملخص العملية المالية والأقساط', style: AppTextStyles.baseBold(AppColors.blue950)),
+                      const SizedBox(height: 2),
+                      Text('حساب مالي فوري وشامل لعملية البيع', style: AppTextStyles.xs(AppColors.blue700)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.green100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.green300),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: AppColors.green600,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text('حساب مباشر', style: AppTextStyles.xsBold(AppColors.green800)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 4 Highlight Stat Cards
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 550;
+                    final card1 = _buildStatCard(
+                      'السعر الكلي',
+                      _hasTotalPrice ? '${MoneyFormatter.formatAmount(_totalPrice)} $sym' : '—',
+                      AppColors.blue600,
+                      AppColors.blue50,
+                      Icons.sell_outlined,
+                    );
+                    final card2 = _buildStatCard(
+                      'المقدمة المستلمة',
+                      _hasDownPayment ? '${MoneyFormatter.formatAmount(_downPayment)} $sym' : '—',
+                      AppColors.amber600,
+                      AppColors.amber50,
+                      Icons.payments_outlined,
+                    );
+                    final card3 = _buildStatCard(
+                      'المبلغ المتبقي',
+                      _hasRemaining ? '${MoneyFormatter.formatAmount(_remaining)} $sym' : '—',
+                      AppColors.purple600,
+                      const Color(0xFFFAF5FF),
+                      Icons.account_balance_wallet_outlined,
+                    );
+                    final card4 = _buildStatCard(
+                      'قيمة القسط الواحد',
+                      _hasInstallmentValue ? '${MoneyFormatter.formatAmount(_installmentValue)} $sym' : '—',
+                      AppColors.emerald600,
+                      const Color(0xFFECFDF5),
+                      Icons.calendar_month_outlined,
+                      isHighlighted: true,
+                    );
+
+                    if (isWide) {
+                      return Row(
+                        children: [
+                          Expanded(child: card1),
+                          const SizedBox(width: 8),
+                          Expanded(child: card2),
+                          const SizedBox(width: 8),
+                          Expanded(child: card3),
+                          const SizedBox(width: 8),
+                          Expanded(child: card4),
+                        ],
+                      );
+                    }
+                    return Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: card1),
+                            const SizedBox(width: 8),
+                            Expanded(child: card2),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(child: card3),
+                            const SizedBox(width: 8),
+                            Expanded(child: card4),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 16),
+                const Divider(height: 1, color: AppColors.gray200),
+                const SizedBox(height: 10),
+
+                // Table Breakdown
+                _buildDetailRow(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'المادة المباعة والكمية',
+                  value: _selectedProduct != null ? '${_selectedProduct!.name} (${_quantity}x)' : '—',
+                ),
+                _buildDetailRow(
+                  icon: Icons.sell_outlined,
+                  label: 'سعر المفرد للمادة',
+                  value: _selectedProduct != null ? '${MoneyFormatter.formatAmount(_selectedProduct!.price)} $sym' : '—',
+                ),
+                _buildDetailRow(
+                  icon: Icons.format_list_numbered_rtl_rounded,
+                  label: 'عدد الأقساط',
+                  value: _hasInstallmentsCount ? '$_installmentsCount أقساط' : '—',
+                ),
+                _buildDetailRow(
+                  icon: Icons.schedule_rounded,
+                  label: 'طريقة ونظام السداد',
+                  value: _installmentType == 'weekly' ? 'أسبوعي (كل 7 أيام)' : 'شهري (كل شهر)',
+                ),
+                _buildDetailRow(
+                  icon: Icons.payments_rounded,
+                  label: 'قيمة كل قسط',
+                  value: _hasInstallmentValue ? '${MoneyFormatter.formatAmount(_installmentValue)} $sym' : '—',
+                  isBold: true,
+                  valueColor: AppColors.emerald700,
+                ),
+                _buildDetailRow(
+                  icon: Icons.account_balance_wallet_rounded,
+                  label: 'إجمالي مبالغ الأقساط',
+                  value: _hasRemaining ? '${MoneyFormatter.formatAmount(_remaining)} $sym' : '—',
+                ),
+                _buildDetailRow(
+                  icon: Icons.event_available_outlined,
+                  label: 'تاريخ استحقاق أول قسط',
+                  value: _hasInstallmentsCount ? firstDate : '—',
+                ),
+                _buildDetailRow(
+                  icon: Icons.event_busy_outlined,
+                  label: 'تاريخ استحقاق آخر قسط',
+                  value: _hasInstallmentsCount ? lastDate : '—',
+                ),
+                _buildDetailRow(
+                  icon: Icons.today_outlined,
+                  label: 'تاريخ تسجيل البيع',
+                  value: '${_saleDate.year}/${_saleDate.month.toString().padLeft(2, '0')}/${_saleDate.day.toString().padLeft(2, '0')}',
+                ),
+
+                // Cost & Profit Breakdown
+                if (_selectedProduct != null && _selectedProduct!.costPrice > 0) ...[
+                  _buildDetailRow(
+                    icon: Icons.shopping_bag_outlined,
+                    label: 'إجمالي التكلفة (سعر الشراء)',
+                    value: '${MoneyFormatter.formatAmount(_selectedProduct!.costPrice * _quantity)} $sym',
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _expectedProfit >= 0 ? AppColors.green50 : AppColors.red50,
+                      borderRadius: AppDimens.borderMd,
+                      border: Border.all(
+                        color: _expectedProfit >= 0 ? AppColors.green300 : AppColors.red300,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _expectedProfit >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                          color: _expectedProfit >= 0 ? AppColors.green700 : AppColors.red700,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _expectedProfit >= 0 ? 'الربح الإجمالي المتوقع' : 'خسارة في البيع',
+                                style: AppTextStyles.xs(
+                                  _expectedProfit >= 0 ? AppColors.green800 : AppColors.red800,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${MoneyFormatter.formatAmount(_expectedProfit)} $sym (هامش الربح: $_profitPercentage%)',
+                                style: AppTextStyles.baseBold(
+                                  _expectedProfit >= 0 ? AppColors.green800 : AppColors.red800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  _buildDetailRow(
+                    icon: Icons.trending_up_rounded,
+                    label: 'الربح المتوقع',
+                    value: '—',
+                    note: _selectedProduct != null ? '(لم يُحدد سعر التكلفة)' : null,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    String label,
+    String value,
+    Color color,
+    Color bg,
+    IconData icon, {
+    bool isHighlighted = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: bg,
         borderRadius: AppDimens.borderMd,
+        border: Border.all(
+          color: isHighlighted ? color : color.withValues(alpha: 0.25),
+          width: isHighlighted ? 1.8 : 1.0,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTextStyles.xs(AppColors.gray600)),
-          const SizedBox(height: 4),
-          Text(value, style: AppTextStyles.baseBold(AppColors.gray800)),
+          Row(
+            children: [
+              Icon(icon, size: 15, color: color),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTextStyles.xs(AppColors.gray600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: AppTextStyles.baseBold(color).copyWith(
+              fontSize: isHighlighted ? 15 : 13.5,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    String? note,
+    Color? valueColor,
+    bool isBold = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, size: 15, color: AppColors.gray500),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: AppTextStyles.sm(AppColors.gray700),
+          ),
+          if (note != null) ...[
+            const SizedBox(width: 4),
+            Text(note, style: AppTextStyles.xs(AppColors.gray400)),
+          ],
+          const Spacer(),
+          Text(
+            value,
+            style: (isBold
+                ? AppTextStyles.smBold(valueColor ?? AppColors.gray900)
+                : AppTextStyles.sm(valueColor ?? AppColors.gray800)),
+          ),
         ],
       ),
     );
